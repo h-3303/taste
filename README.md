@@ -98,4 +98,4 @@ uv sync
 uv run pytest -q
 ```
 
-Licence: to be decided.
+Licence: MIT (see LICENSE). Library items keep their own licences, shown with each item.
