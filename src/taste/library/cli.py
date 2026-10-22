@@ -211,7 +211,7 @@ def cmd_install_timer(a) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = _Parser(prog="dlib", description="the taste design library")
+    ap = _Parser(prog="taste lib", description="the taste design library")
     ap.add_argument("--json", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("sync", help="run source adapters (sample mode unless --full)")

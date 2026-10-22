@@ -26,7 +26,7 @@ def pick_image(identifier: str, files: list[dict]) -> str | None:
 
 class ArchiveAdapter:
     info = SourceInfo("archive", "Internet Archive (opt-in collections)", "https://archive.org", 1, policy="manual",
-                      notes="run only when named: dlib sync archive")
+                      notes="run only when named: taste sync archive")
 
     def collections(self, fetch):
         for slug, title, q in QUERIES:

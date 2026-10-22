@@ -131,7 +131,7 @@ def sync(conn, adapters: list, fetch, thumbs_dir: Path, opts: SyncOptions, log=p
             r["failures"].append("tier 3 source skipped: pass --snapshot to catalogue it once")
             continue
         if info.policy == "manual" and not explicit:
-            r["failures"].append("manual source: run `dlib sync archive` to include it")
+            r["failures"].append(f"manual source: run `taste sync {info.slug}` to include it")
             continue
         log(f"{info.slug}: syncing" + (" (sample)" if opts.sample else ""))
         if hasattr(adapter, "max_items"):

@@ -289,7 +289,7 @@ def cmd_survey_canvas(a):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="moodboards")
+    ap = argparse.ArgumentParser(prog="taste")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("new"); p.add_argument("slug"); p.set_defaults(fn=cmd_new)
     p = sub.add_parser("gather"); p.add_argument("run"); p.add_argument("--per-query", type=int, default=6)

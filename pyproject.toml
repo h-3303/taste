@@ -1,7 +1,7 @@
 [project]
 name = "taste"
 version = "0.1.0"
-description = "Design taste toolkit: moodboards and a design library"
+description = "Taste curator for Claude Code"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [

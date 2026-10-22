@@ -8,7 +8,7 @@ from . import db, paths, thumbs
 from .models import CollectionDraft, ItemDraft, SourceInfo
 from .sources import base
 
-SOURCE = SourceInfo("curated", "Curated keepers", "", 1, policy="manual", notes="dlib add / moodboards keep")
+SOURCE = SourceInfo("curated", "Curated keepers", "", 1, policy="manual", notes="taste add / taste keep")
 KIND_BY_EXT = {".svg": "icon", ".ttf": "font", ".otf": "font", ".woff": "font", ".woff2": "font", ".css": "snippet", ".js": "snippet",
                ".jsx": "snippet", ".tsx": "snippet", ".ts": "snippet", ".glsl": "snippet", ".html": "snippet",
                ".jpg": "image", ".jpeg": "image", ".png": "image", ".webp": "image", ".gif": "image"}
@@ -42,7 +42,7 @@ def add(conn, collection_slug: str, src: str, fetch, thumbs_dir: Path, title: st
         page_url: str = "", language: str | None = None, now: str | None = None) -> str:
     coll = db.get_collection(conn, _slug(collection_slug))
     if not coll:
-        raise KeyError(f"no collection {collection_slug}; create it with: dlib collection new {collection_slug.split('/')[-1]} --kind <kind>")
+        raise KeyError(f"no collection {collection_slug}; create it with: taste lib collection new {collection_slug.split('/')[-1]} --kind <kind>")
     now = now or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     is_url = src.startswith(("http://", "https://"))
     ext = Path(urlparse(src).path if is_url else src).suffix.lower()
