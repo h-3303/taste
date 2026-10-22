@@ -135,3 +135,28 @@ def test_install_timer_without_taste_on_path_is_a_user_error(env, monkeypatch, c
     assert cli.main(["maintainer", "install-timer"]) == 1
     assert "not on PATH" in capsys.readouterr().err
     assert not (env / ".config").exists()
+
+
+@pytest.mark.parametrize("argv", [["seed", "install", "--help"], ["seed", "--help"],
+                                  ["maintainer", "seed-build", "--help"], ["maintainer", "--help"],
+                                  ["gaps", "--help"], ["connectors", "--help"]])
+def test_help_prints_usage_and_does_nothing(argv, env, monkeypatch, tmp_path, capsys):
+    from taste import seed
+    work = tmp_path / "cwd"; work.mkdir()
+    monkeypatch.chdir(work)
+    monkeypatch.setattr(seed, "download", lambda *a, **k: (_ for _ in ()).throw(AssertionError("downloaded")))
+    monkeypatch.setattr(seed, "build_seed", lambda *a, **k: (_ for _ in ()).throw(AssertionError("built")))
+    before = sorted(p.name for p in env.iterdir())
+    with pytest.raises(SystemExit) as e:
+        cli.main(argv)
+    assert e.value.code == 0
+    assert capsys.readouterr().out.startswith(f"usage: taste {argv[0]}")
+    assert list(work.iterdir()) == []                                # no file named --help
+    assert sorted(p.name for p in env.iterdir()) == before
+
+
+def test_seed_and_maintainer_usage_errors_exit_1(env, capsys):
+    for argv in (["seed"], ["seed", "install", "a", "b"], ["maintainer"], ["maintainer", "seed-build"], ["maintainer", "bogus"]):
+        with pytest.raises(SystemExit) as e:
+            cli.main(argv)
+        assert e.value.code == 1, argv

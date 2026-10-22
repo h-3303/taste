@@ -67,31 +67,38 @@ def _cmd_sync(rest: list[str]) -> int:
     return _lib((["--json"] if a.json else []) + out)
 
 
+def _parser(prog: str, description: str = "") -> argparse.ArgumentParser:
+    from .library.cli import _Parser   # usage errors exit 1, as everywhere in taste
+    return _Parser(prog=prog, description=description or None)
+
+
 def _cmd_maintainer(rest: list[str]) -> int:
-    if rest and rest[0] == "seed-build":
-        if len(rest) != 2:
-            print("usage: taste maintainer seed-build OUT", file=sys.stderr)
-            return 1
-        from . import seed
-        from .library import db, paths
-        conn = db.connect(paths.db_path())
-        rep = seed.build_seed(conn, paths.thumbs_dir(), Path(rest[1]))
-        print(f"seed: {rep.files} files, {rep.links} links, {rep.skipped} skipped -> {rest[1]}")
-        return 0
-    if not rest or rest[0] not in ("sync", "install-timer"):
-        print("usage: taste maintainer sync|install-timer|seed-build OUT", file=sys.stderr)
-        return 1
-    return _lib(rest)
+    if rest and rest[0] in ("sync", "install-timer"):
+        return _lib(rest)   # the library's own parser (and its --help) handles these
+    ap = _parser("taste maintainer", "for whoever publishes seed snapshots")
+    sub = ap.add_subparsers(dest="action", required=True, parser_class=type(ap))
+    sub.add_parser("sync", help="sync every source, renderer ones included")
+    sub.add_parser("install-timer", help="install the weekly taste-sync systemd user timer")
+    sub.add_parser("seed-build", help="write a seed snapshot zip").add_argument("out")
+    a = ap.parse_args(rest)
+    from . import seed
+    from .library import db, paths
+    conn = db.connect(paths.db_path())
+    rep = seed.build_seed(conn, paths.thumbs_dir(), Path(a.out))
+    print(f"seed: {rep.files} files, {rep.links} links, {rep.skipped} skipped -> {a.out}")
+    return 0
 
 
 def _cmd_seed(rest: list[str]) -> int:
-    if not rest or rest[0] != "install" or len(rest) > 2:
-        print("usage: taste seed install [ARCHIVE]", file=sys.stderr)
-        return 1
+    ap = _parser("taste seed")
+    sub = ap.add_subparsers(dest="action", required=True, parser_class=type(ap))
+    sub.add_parser("install", help="install the seed library (downloads the latest unless ARCHIVE is given)") \
+        .add_argument("archive", nargs="?", metavar="ARCHIVE")
+    a = ap.parse_args(rest)
     from . import seed
     from .library import db, paths
     paths.ensure_dirs()
-    archive = Path(rest[1]) if len(rest) == 2 else None
+    archive = Path(a.archive) if a.archive else None
     if archive is None:
         archive = paths.data_root() / "taste-seed.zip"
         print(f"downloading {seed.SEED_URL}")
@@ -145,6 +152,7 @@ def _cmd_disconnect(rest: list[str]) -> int:
 
 
 def _cmd_connectors(rest: list[str]) -> int:
+    _parser("taste connectors", "list configured connectors and whether each is on").parse_args(rest)
     conns = config.load().get("connectors", {})
     for name, c in sorted(conns.items()):
         extra = " ".join(f"{k}={v}" for k, v in c.items() if k != "enabled")
@@ -350,10 +358,10 @@ def _cmd_import(rest: list[str]) -> int:
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
-    if len(rest) != 1:
-        print("usage: taste gaps <run>", file=sys.stderr)
-        return 2
-    for line in rounds.gaps(Run(rest[0])):
+    ap = _parser("taste gaps", "what is thin so far in a run")
+    ap.add_argument("run")
+    a = ap.parse_args(rest)
+    for line in rounds.gaps(Run(a.run)):
         print(line)
     return 0
 
