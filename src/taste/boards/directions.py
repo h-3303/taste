@@ -8,6 +8,7 @@ AXES = ("palette", "density", "type", "imagery")
 MIN_IMAGES, MAX_IMAGES = 8, 60
 PARTS = ("palette", "type", "texture", "components", "imagery")   # what a mix ("m<k>") takes from its sources
 MIX_ID = re.compile(r"m([1-9]\d*)")
+PLAIN_ID = re.compile(r"[1-9]\d*")
 
 
 def style_errors(d: dict) -> list[str]:
@@ -95,8 +96,13 @@ def validate(directions: dict, pool: dict) -> list[str]:
         errs.append("need at least 1 direction")
     mixes = [d for d in ds if isinstance(d.get("id"), str) and MIX_ID.fullmatch(d["id"])]
     n, k = len(ds) - len(mixes), len(mixes)
-    if [d.get("id") for d in ds] != [str(i) for i in range(1, n + 1)] + [f"m{i}" for i in range(1, k + 1)]:
-        errs.append(f'ids must be "1" to "{n}" in order' + (f', then "m1" to "m{k}"' if k else ""))
+    plain = [d.get("id") for d in ds[:n]]
+    # kept directions keep their ids after narrowing, so plain ids may have gaps; mixes are m1..mk after them
+    plain_ok = all(isinstance(i, str) and PLAIN_ID.fullmatch(i) for i in plain) and \
+        all(int(a) < int(b) for a, b in zip(plain, plain[1:]))
+    if not plain_ok or [d.get("id") for d in ds[n:]] != [f"m{i}" for i in range(1, k + 1)]:
+        errs.append('ids must be ascending whole numbers ("1", "2", "5" ...; gaps allowed)'
+                    + (f', then "m1" to "m{k}"' if k else ""))
     errs += _mix_errors(ds)
     roots = _roots(ds)
     usage = Counter()

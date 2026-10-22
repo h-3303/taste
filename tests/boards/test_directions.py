@@ -32,9 +32,12 @@ def test_good_is_valid():
 
 @pytest.mark.parametrize("mutate,needle", [
     (lambda d: d["directions"].clear(), "at least 1 direction"),
-    (lambda d: d["directions"][0].update(id="2"), 'ids must be "1" to "4" in order'),
-    (lambda d: d["directions"][0].update(id=1), 'ids must be "1" to "4" in order'),
-    (lambda d: d["directions"].reverse(), 'ids must be "1" to "4" in order'),
+    (lambda d: d["directions"][0].update(id="2"), "ids must be"),        # duplicate
+    (lambda d: d["directions"][0].update(id=1), "ids must be"),          # not a string
+    (lambda d: d["directions"].reverse(), "ids must be"),                # not ascending
+    (lambda d: d["directions"][0].update(id="0"), "ids must be"),
+    (lambda d: d["directions"][0].update(id="01"), "ids must be"),
+    (lambda d: d["directions"][0].update(id="x"), "ids must be"),
     (lambda d: d["directions"][0].update(palette=["#111111\n"] * 5), "palette"),
     (lambda d: d["directions"][0].update(type={"display": "Bad';x", "text": "Inter"}), "direction 1: bad font name"),
     (lambda d: d["directions"][0].update(type={"display": "Inter", "text": 'Bad"x'}), "direction 1: bad font name"),
@@ -108,3 +111,26 @@ def test_board_over_sixty_images_rejected():
     d, pool = ten()
     d["directions"][0]["image_ids"] += [f"i{j:03}" for j in range(451, 462)]   # 61, some borrowed
     assert any("8-60 images" in e for e in validate(d, pool))
+
+
+def test_kept_directions_keep_their_ids_with_gaps():
+    # narrowing to the kept boards leaves gaps; images keep the style tags gathered for those ids
+    d = good()
+    for k, new in zip(range(4), ("1", "3", "4", "7")):
+        d["directions"][k]["id"] = new
+    pool = {"images": [{**r, "style": {"1": "1", "2": "3", "3": "4", "4": "7"}[r["style"]]} for r in POOL["images"]]}
+    assert validate(d, pool) == []
+
+
+def test_mixes_follow_gapped_ids():
+    from tests.test_combine import ALL1
+    d = good()
+    d["directions"] = [d["directions"][0], d["directions"][2]]
+    d["directions"][1]["id"] = "3"
+    pool = POOL
+    mix = {**copy.deepcopy(d["directions"][0]), "id": "m1", "name": "Mix", "from": {**ALL1, "type": "3"},
+           "axes": AXES[3]}
+    d["directions"].append(mix)
+    assert not [e for e in validate(d, pool) if "ids must be" in e]
+    d["directions"][-1]["id"] = "m2"
+    assert any("ids must be" in e for e in validate(d, pool))

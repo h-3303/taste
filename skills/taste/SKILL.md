@@ -206,10 +206,8 @@ saves go in `<data dir>/inbox/<id>/` (optional `sources.txt`: `filename<TAB>url[
 ## 3. Directions (parts, combinable)
 
 - Narrow `directions.json` to the kept boards (keep a copy as above), without the dropped images, ideally 3-4. Do
-  all gathering for them first. Direction ids must run `1`…`n` (then `m1`…), so renumber the kept ones and, in
-  `pool.json`, change each image's `style` by the same map (images of dropped languages become `null`); a later
-  `taste gather` restores the old tags, so to add images after renumbering, scout and keep under the new id, gather,
-  then re-apply the map to `pool.json`. Fill each direction out so all five parts are
+  all gathering for them first. Kept directions keep their ids (gaps are fine, e.g. `1`, `3`, `4`; mixes follow as
+  `m1`…), so `pool.json` and later gathers need no changes. Fill each direction out so all five parts are
   real: palette (`palettes` variants if useful), type pair (`fonts` pairings), texture (`sections.texture`),
   `components`, imagery. `taste validate <run>` until `directions ok`.
 - `taste round render <run> directions --title "<Project>" --out <scratchpad>/taste-<slug>-directions`, publish, and
