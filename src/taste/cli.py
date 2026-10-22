@@ -9,6 +9,7 @@ VERSION = "taste 0.1.0"
 _USAGE = """usage: taste <command> [args]
 
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
+rounds:       round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
 sync:        sync [source ...]            (API/repo sources only)
@@ -162,7 +163,41 @@ def _cmd_add(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+def _cmd_round(rest: list[str]) -> int:
+    import json
+    from . import rounds
+    from .boards.run import Run
+    usage = "usage: taste round ingest <run> <stage> <n> <doc.json> | steer <run> | final <run> <comments.json>"
+    try:
+        if rest[:1] == ["ingest"] and len(rest) == 5:
+            r = rounds.ingest(Run(rest[1]), rest[2], int(rest[3]), json.loads(Path(rest[4]).read_text(encoding="utf-8")))
+            print(f"{r.stage} round {r.n}: {len(r.items)} item(s) recorded")
+        elif rest[:1] == ["steer"] and len(rest) == 2:
+            print(json.dumps(rounds.steering(Run(rest[1])), indent=2, ensure_ascii=False))
+        elif rest[:1] == ["final"] and len(rest) == 3:
+            r = rounds.record_final(Run(rest[1]), json.loads(Path(rest[2]).read_text(encoding="utf-8")))
+            print(f"final round {r.n}: {len(r.items)} comment(s) recorded")
+        else:
+            print(usage, file=sys.stderr)
+            return 2
+    except (ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_gaps(rest: list[str]) -> int:
+    from . import rounds
+    from .boards.run import Run
+    if len(rest) != 1:
+        print("usage: taste gaps <run>", file=sys.stderr)
+        return 2
+    for line in rounds.gaps(Run(rest[0])):
+        print(line)
+    return 0
+
+
+_COMMANDS = {"round": _cmd_round, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 
