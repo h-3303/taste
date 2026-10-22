@@ -51,7 +51,8 @@ class FolderNotes:
             seen: set[str] = set()
 
             def add_url(u):
-                if u not in seen:
+                from ..library.fetch import banned
+                if u not in seen and not banned(u):
                     seen.add(u)
                     out.append(item(url=u, title=title, source_url=u, note=note.stem))
 

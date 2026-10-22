@@ -61,6 +61,7 @@ def connector_candidates(conns, dest: Path, http=None):
     """Untagged candidates from the folder connectors: local images as they are, image URLs downloaded,
     any other URL skipped (a link to a page is not an image)."""
     from taste.connectors.folders import FolderImages, FolderNotes, is_image_url
+    from taste.library.fetch import banned
     cands, failures = [], []
     for c in conns:
         if not isinstance(c, (FolderImages, FolderNotes)):
@@ -69,6 +70,9 @@ def connector_candidates(conns, dest: Path, http=None):
             if it["path"]:
                 cands.append(Candidate("folder", Path(it["path"]), it["source_url"], it["note"] or c.name, it["title"]))
             elif it["url"] and is_image_url(it["url"]):
+                if banned(it["url"]):
+                    failures.append(f"{it['url']}: banned host")
+                    continue
                 from .net import Http
                 http = http or Http()
                 target = dest / "folder" / f"{c.name}-{n}{Path(it['url'].split('?')[0]).suffix.lower()}"

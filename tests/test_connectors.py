@@ -196,3 +196,25 @@ def test_instagram_media_finds_post_images(tmp_path):
 
 def test_instagram_media_items_lists_all_images(tmp_path):
     assert len(InstagramMedia(make_media(tmp_path)).items()) == 3
+
+
+BANNED = "https://cdn.are.na/x.png https://www.artvee.com/y.jpg"
+
+
+def test_folder_notes_drops_banned_hosts(tmp_path):
+    (tmp_path / "n.md").write_text(f"# N\n{BANNED} ![a](https://cdn.are.na/z.png) https://ok.example/p\n")
+    assert [i["url"] for i in FolderNotes(tmp_path).items()] == ["https://ok.example/p"]
+
+
+def test_connector_candidates_never_fetch_banned(tmp_path):
+    from taste.boards.cli import connector_candidates
+
+    class Leaky(FolderNotes):   # a connector that fails to filter at the source
+        def items(self):
+            return [{"path": None, "url": u, "title": "t", "source_url": u, "note": "n"} for u in BANNED.split()]
+
+    class Http:
+        def download(self, url, dest):
+            raise AssertionError(f"fetched {url}")
+    cands, failures = connector_candidates([Leaky(tmp_path)], tmp_path / "raw", Http())
+    assert cands == [] and len(failures) == 2 and all("banned host" in f for f in failures)
