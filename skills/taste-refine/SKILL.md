@@ -37,7 +37,9 @@ one more than the highest `<run>/rounds/refine-<k>.json` (1 when there is none).
    relative to the run; ids are letters, digits, `-` or `_`).
 4. `taste refine check <run> <n>` until it prints `ok`.
 5. `taste round render <run> refine --title "<Project> — pass <n>" --out <scratchpad>/taste-<slug>-refine`, then
-   publish it exactly as the `taste` skill publishes a stage page (`root`, `files` mapping each key of
+   check that its second line reads `pass: refine <n>` with the same `<n>` as the options file (it refuses to render
+   when no `refine/<n>-options.json` matches the next pass), and publish it exactly as the `taste` skill publishes a
+   stage page (`root`, `files` mapping each key of
    `files.json` to itself, `capabilities: {"db": {}, "user": {}}`) and record it in `<run>/published.json`. Give the
    link: "Pick at most one change per layer, add notes or a prompt, then tell me."
 6. **Stop** until they are done. Read it back as every stage is read back: `ArtifactData` `get`, collection
@@ -61,7 +63,8 @@ When the person says the project's design is settled (or asks to update their pr
    Write `<run>/proposals.json`: `[{"id": "p1", "section": "Liked traits"|"Disliked traits"|"Rules"|"References",
    "text": "...", "default": true}, ...]`.
 3. `taste round render <run> review --title "<Project> — profile review" --out <scratchpad>/taste-<slug>-review`,
-   publish as above, and give the link: "Tick what is true of your taste in general, then tell me."
+   publish as above, and give the link: "Tick what is true of your taste in general, then tell me." Take `<n>` from
+   the render's second line, `pass: review <n>`; each render starts a new review pass, so render once per pass.
 4. **Stop**, then ingest it (`ArtifactData` `get` collection `rounds`, doc_id `review-<n>` into `<run>/page-state`,
    then `taste round ingest <run> review <n> <file>`).
 5. `taste profile apply <run> <n>` adds the ticked proposals and the project's line to the profile (append-only;

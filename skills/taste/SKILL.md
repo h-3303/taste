@@ -41,6 +41,12 @@ Rules that hold at every stage:
 
 Every stage page is rendered by the CLI into a folder and published with the Artifact tool:
 
+- `taste round render <run> <stage> --title … --out …` prints two lines: the page path, then
+  `pass: <stage> <n>`. **Take `<n>` from that line** for everything about this pass (the `published.json` key, the
+  database doc, `taste round ingest`, `--repeat-of` on the next pass); never guess or count it yourself. Each render
+  starts a new pass with its own record, so render once per pass: do not re-render to "refresh" a page the person
+  is voting on.
+
 - Render into the session scratchpad (the Artifact tool only accepts files under the working directory or the
   scratchpad): `--out <scratchpad>/taste-<slug>-<stage>`. A re-render replaces the earlier one in that folder;
   never `cp` into it.

@@ -98,6 +98,16 @@ def test_cli_round_render_and_unknown_stage(tmp_path, capsys):
     assert "stage final has no page yet" in capsys.readouterr().err
 
 
+def test_cli_round_render_prints_the_pass_it_started(tmp_path, capsys):
+    """Each render starts a new pass; the agent takes <n> for ingest from the `pass:` line."""
+    run = _run(tmp_path)
+    for n in (1, 2):
+        assert main(["round", "render", str(run.path), "broad", "--title", "Shop", "--out", str(tmp_path / "o")]) == 0
+        out = capsys.readouterr().out.splitlines()
+        assert out == [str(tmp_path / "o" / "index.html"), f"pass: broad {n}"]
+        assert (run.path / "rounds" / f"broad-{n}.json").exists()
+
+
 def test_cli_library_page(tmp_path, monkeypatch):
     monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     from taste.library import paths

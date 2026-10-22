@@ -78,7 +78,7 @@ def test_taste_skill_keeps_the_judgement_rules():
     text = (ROOT / "skills/taste/SKILL.md").read_text(encoding="utf-8")
     for phrase in ("**Beauty, not theme.**", "**Style is not subject.**",
                    "Never scrape Are.na, Artvee, eMuseum, Gurafiku or Design Reviewed",
-                   '"db": {}, "user": {}', "demo_at", "files.json"):
+                   '"db": {}, "user": {}', "demo_at", "files.json", "`pass: <stage> <n>`"):
         assert phrase in text, phrase
 
 
@@ -161,3 +161,8 @@ def test_seed_from_a_mixed_library_ships_no_gallery_thumbnails(mixed_lib, tmp_pa
     assert {s for s, _ in shipped} == set(FILE_ROWS) | {"lygia"}
     assert ("lygia", "Prosperity") not in shipped
     assert (rep.files, rep.links, rep.skipped) == (len(FILE_ROWS) + 1, len(LINK_ROWS) + 1, 3)
+
+
+def test_refine_skill_takes_pass_numbers_from_render():
+    text = (ROOT / "skills/taste-refine/SKILL.md").read_text(encoding="utf-8")
+    assert text.count("`pass: refine <n>`") >= 1 and "`pass: review <n>`" in text

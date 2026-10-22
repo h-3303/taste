@@ -215,8 +215,11 @@ def _round_render(rest: list[str]) -> int:
     if a.stage not in pages.PAGES:
         print(f"error: stage {a.stage} has no page yet", file=sys.stderr)
         return 1
+    from . import rounds
+    from .boards.run import Run
     page = pages.render_round(a.run, a.stage, a.title, Path(a.out), repeat_of=a.repeat_of)
     print(page)
+    print(f"pass: {a.stage} {rounds.next_n(Run(a.run), a.stage) - 1}")   # the n to ingest; each render starts one
     return 0
 
 
