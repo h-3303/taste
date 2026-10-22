@@ -9,6 +9,7 @@ VERSION = "taste 0.1.0"
 _USAGE = """usage: taste <command> [args]
 
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
+additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
 sync:        sync [source ...]            (API/repo sources only)
 seed:        seed install [ARCHIVE]
@@ -135,7 +136,25 @@ def _cmd_connectors(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+def _cmd_add(rest: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="taste add")
+    ap.add_argument("target"); ap.add_argument("--kind"); ap.add_argument("--tag", action="append", default=[])
+    ap.add_argument("--language")
+    a = ap.parse_args(rest)
+    from . import additions
+    from .library import db, fetch, paths
+    paths.ensure_dirs()
+    conn = db.connect(paths.db_path())
+    try:
+        ids = additions.add(conn, a.target, kind=a.kind, tags=a.tag, language=a.language)
+    except (ValueError, fetch.FetchError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(f"added {len(ids)} item(s) to mine/additions")
+    return 0
+
+
+_COMMANDS = {"add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 
