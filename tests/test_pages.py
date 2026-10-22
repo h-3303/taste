@@ -236,3 +236,67 @@ def test_directions_page_no_person_specific_text(tmp_path):
 def test_cli_round_render_directions(tmp_path):
     run = _directions_run(tmp_path)
     assert main(["round", "render", str(run.path), "directions", "--title", "Shop", "--out", str(tmp_path / "o")]) == 0
+
+
+def _refine_run(tmp_path, n=1):
+    run = Run(tmp_path / "run")
+    layers = {"ground": ["paper", "slate"], "type": ["serif", "grotesk", "mono"]}
+    doc = {"kind": "ui", "layers": {}}
+    for layer, ids in layers.items():
+        doc["layers"][layer] = []
+        for i in ids:
+            p = run.path / "refine" / "stills" / f"{layer}-{i}.png"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            _img(p)
+            doc["layers"][layer].append({"id": i, "label": i.title(), "still": f"refine/stills/{layer}-{i}.png",
+                                         "detail": f"{i} detail"})
+    run.write(f"refine/{n}-options.json", doc)
+    return run
+
+
+def test_refine_page_has_layers_options_notes_prompts(tmp_path):
+    run = _refine_run(tmp_path)
+    out = tmp_path / "re"
+    html = render_round(run, "refine", "Shop", out).read_text(encoding="utf-8")
+    for oid in ("ground:paper", "ground:slate", "type:serif", "type:grotesk", "type:mono"):
+        assert f'data-id="{oid}"' in html
+    assert html.count('data-group="ground"') == 2 and html.count('data-group="type"') == 3
+    assert 'data-votes="pick"' in html and "rounds/refine-1" in html
+    assert 'id="layer-note-ground"' in html and 'id="layer-note-type"' in html
+    assert len(re.findall(r'<textarea[^>]*class="item-note"', html)) == 5
+    assert 'id="prompt"' in html and 'id="prompt-add"' in html and "state.prompts" in html
+    assert "dataset.group" in html and 'id="page-note"' in html
+    assert "Fraunces" not in html and "ground detail" not in html and "paper detail" in html
+    files = json.loads((out / "files.json").read_text())
+    assert len(files) == 5 and all((out / k).exists() for k in files)
+    assert all(k.startswith("img/") for k in files)
+    rec = rounds.load(run, "refine", 1)
+    assert rec.shown == ["ground", "ground:paper", "ground:slate", "type", "type:serif", "type:grotesk", "type:mono"]
+
+
+def test_refine_page_needs_options_for_next_pass(tmp_path, capsys):
+    run = _refine_run(tmp_path)
+    render_round(run, "refine", "Shop", tmp_path / "r1")
+    assert main(["round", "render", str(run.path), "refine", "--title", "Shop", "--out", str(tmp_path / "r2")]) == 1
+    assert "write refine/2-options.json first" in capsys.readouterr().err
+    assert not (run.path / "rounds" / "refine-2.json").exists()
+
+
+def test_refine_page_rejects_bad_options(tmp_path, capsys):
+    run = _refine_run(tmp_path)
+    doc = run.read("refine/1-options.json")
+    doc["layers"]["floor"] = doc["layers"].pop("ground")
+    run.write("refine/1-options.json", doc)
+    assert main(["round", "render", str(run.path), "refine", "--title", "Shop", "--out", str(tmp_path / "r")]) == 1
+    assert "floor" in capsys.readouterr().err
+    assert not (run.path / "rounds" / "refine-1.json").exists()
+
+
+def test_refine_page_escapes_and_no_person_specific_text(tmp_path):
+    run = _refine_run(tmp_path)
+    doc = run.read("refine/1-options.json")
+    doc["layers"]["ground"][0]["label"] = "<script>x</script>"
+    run.write("refine/1-options.json", doc)
+    html = render_round(run, "refine", "Shop", tmp_path / "r").read_text(encoding="utf-8")
+    assert "<script>x</script>" not in html
+    assert not re.search(r"\bh\b(?!=)", re.sub(r"<[^>]+>", " ", html.split("<script>")[0]))

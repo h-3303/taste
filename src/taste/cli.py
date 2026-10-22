@@ -10,6 +10,7 @@ _USAGE = """usage: taste <command> [args]
 
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
 rounds:       round render RUN STAGE --title T --out DIR [--repeat-of N] | round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN | combine RUN --from-round N
+refine:      refine check RUN N | refine apply RUN N [--project DIR]   (round render RUN refine shows pass N)
 pages:       library-page --out DIR [--query Q] [--kind K] [--no-fetch]
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
@@ -243,6 +244,31 @@ def _cmd_combine(rest: list[str]) -> int:
     return 0
 
 
+def _cmd_refine(rest: list[str]) -> int:
+    from . import refine
+    from .boards.run import Run
+    ap = argparse.ArgumentParser(prog="taste refine")
+    ap.add_argument("action", choices=("check", "apply")); ap.add_argument("run"); ap.add_argument("n", type=int)
+    ap.add_argument("--project")
+    a = ap.parse_args(rest)
+    run = Run(a.run)
+    try:
+        doc = refine.load_options(run, a.n)
+        errs = refine.check_options(doc, root=run.path)
+        if errs:
+            print("\n".join(f"error: {e}" for e in errs), file=sys.stderr)
+            return 1
+        if a.action == "check":
+            k = sum(len(o) for o in doc["layers"].values())
+            print(f"{refine.options_name(a.n)}: ok ({len(doc['layers'])} layers, {k} options)")
+        else:
+            print(refine.apply_pass(run, a.n, Path(a.project) if a.project else None))
+    except (ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
@@ -254,7 +280,7 @@ def _cmd_gaps(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"round": _cmd_round, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+_COMMANDS = {"round": _cmd_round, "refine": _cmd_refine, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 

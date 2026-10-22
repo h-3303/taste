@@ -11,7 +11,8 @@ from ..boards.run import Run, clean_text
 
 env = Environment(loader=PackageLoader("taste.pages"), autoescape=True)
 
-PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2", "directions": "directions.html.j2"}
+PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2", "directions": "directions.html.j2",
+         "refine": "refine.html.j2"}
 NEGATIVE = ("dislike", "drop")
 LIBRARY_DOC = "library/current"
 
@@ -49,6 +50,8 @@ def render_round(run, stage: str, title: str, out_dir: Path, repeat_of: int | No
         return _render_boards(run, stage, title, Path(out_dir), repeat_of)
     if stage == "directions":
         return _render_directions(run, stage, title, Path(out_dir), repeat_of)
+    if stage == "refine":
+        return _render_refine(run, stage, title, Path(out_dir), repeat_of)
     from ..boards import survey
     items = survey.load(run.path)
     if not items:
@@ -102,6 +105,32 @@ def _render_directions(run: Run, stage: str, title: str, out_dir: Path, repeat_o
     r = rounds.start(run, stage, shown, repeat_of=repeat_of)
     return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), boards=boards, items=boards,
                   parts=PARTS, names={b["id"]: b["name"] for b in boards}, font_urls=font_urls, tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
+                  repeat_of=repeat_of, n=r.n)
+
+
+def _render_refine(run: Run, stage: str, title: str, out_dir: Path, repeat_of: int | None) -> Path:
+    """One row per layer: its note (`<layer>`) and its options as stills (`<layer>:<option id>`), one pick each."""
+    from .. import refine
+    n = rounds.next_n(run, stage)
+    doc = refine.load_options(run, n)
+    errs = refine.check_options(doc, root=run.path)
+    if errs:
+        raise ValueError(f"{refine.options_name(n)}: " + "; ".join(errs))
+    out_dir = _fresh(out_dir)
+    files, layers = {}, []
+    for layer in refine.layers_of(doc):
+        opts = []
+        for o in doc["layers"][layer]:
+            src = (run.path / o["still"]).resolve()
+            rel = f"img/{layer}-{o['id']}{src.suffix.lower()}"
+            shutil.copy2(src, out_dir / rel)
+            files[rel] = str(src)
+            opts.append({"id": f"{layer}:{o['id']}", "src": rel, "label": clean_text(o["label"], 80, markdown=False),
+                         "detail": clean_text(o.get("detail", ""), 240, markdown=False)})
+        layers.append({"name": layer, "options": opts})
+    r = rounds.start(run, stage, refine.shown_ids(doc), repeat_of=repeat_of)
+    return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), layers=layers, items=[],
+                  kind=doc["kind"], tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
                   repeat_of=repeat_of, n=r.n)
 
 

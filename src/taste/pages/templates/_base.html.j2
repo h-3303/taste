@@ -186,8 +186,14 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   cards.forEach(el => {
     const id = el.dataset.id;
     el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => b.addEventListener("click", () => {
-      const e = get(id);
-      put(id, { ...e, vote: e.vote === b.dataset.vote ? null : b.dataset.vote });
+      const e = get(id), on = e.vote !== b.dataset.vote;
+      put(id, { ...e, vote: on ? b.dataset.vote : null });
+      /* items sharing a data-group hold one vote between them: voting one clears its siblings */
+      if (on && el.dataset.group) cards.forEach(o => {
+        if (o === el || o.dataset.group !== el.dataset.group) return;
+        const x = get(o.dataset.id);
+        if (x.vote) put(o.dataset.id, { ...x, vote: null });
+      });
       paint(); save();
     }));
     const ta = el.querySelector(":scope > .extra .item-note");

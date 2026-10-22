@@ -28,6 +28,7 @@ def write_brief(directions: dict, pool: dict, images_dir: Path, pick: str, note:
     lines += ["## Palette", ""] + [f"- `{c}`" for c in d["palette"]] + [""]
     lines += ["## Type", "", f"- Display: {d['type']['display']}", f"- Text: {d['type']['text']}", ""]
     lines += ["## Motifs", ""] + [f"- {m}" for m in d["motifs"]] + [""]
+    lines += ["## Current finish", "", "Not refined yet.", ""]
     lines += ["## References", ""]
     for iid in d["image_ids"]:
         r = by_id[iid]

@@ -1,0 +1,123 @@
+{% extends "_base.html.j2" %}
+{% set LABELS = {"ground": "Ground", "cards": "Cards", "depth": "Depth", "ui": "Controls", "type": "Type", "accent": "Accent", "imagery": "Imagery", "texture": "Texture"} %}
+{% set HINTS = {"ground": "the page behind everything", "cards": "the surfaces content sits on", "depth": "shadow, border and layering", "ui": "buttons, inputs and other controls", "type": "faces, sizes and spacing", "accent": "the colour that marks what matters", "imagery": "photos, illustration and how they are framed", "texture": "grain, pattern and surface"} %}
+{% block title %}{{ title }} refine {{ n }}{% endblock %}
+{% block heading %}{{ title }}: refine pass {{ n }}{% endblock %}
+{% block intro %}<p>Each row is one layer of the finish. Pick one option per row, or none if nothing fits, and say why in the notes. Ask for anything the options miss in the box below. The next pass shows the result.</p>{% endblock %}
+{% block note_hint %}Anything else about this pass{% endblock %}
+{% block style %}
+/* Layout: one band per layer, its options side by side as stills (a swipeable strip on phone); request box under the bands. */
+:root{--pick:var(--pos);--band:#ebe7df}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--band:#1a1917}}
+:root[data-theme="dark"]{--band:#1a1917}
+header .bar[aria-label="Filter"]{display:none}
+main.wall{columns:auto;display:flex;flex-direction:column;gap:18px}
+.layer{display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--band);border-radius:6px;min-width:0}
+.layer-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:8px 20px;align-items:end}
+.layer h2{margin:0;font-size:20px;font-weight:650;letter-spacing:-.005em}
+.layer h2 small{display:block;font-size:13px;font-weight:400;color:var(--muted);letter-spacing:0;margin-top:2px}
+.layer-note{width:100%;min-width:0;min-height:36px;height:36px;resize:vertical;padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:13.5px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.opt.item{margin:0;border-width:2px}
+.opt img{aspect-ratio:16/10;object-fit:contain;height:auto}
+.opt[data-tone="pos"]{border-color:var(--pick);box-shadow:0 0 0 1px var(--pick)}
+.opt .meta b{display:flex;gap:8px;align-items:baseline;justify-content:space-between}
+.opt .meta code{font:11px ui-monospace,monospace;color:var(--muted);font-weight:400}
+.opt .votes button[aria-pressed="true"]{background:var(--pick);color:var(--card)!important}
+.asks{max-width:1600px;margin:24px auto 0;padding:16px;border:1px solid var(--line);border-radius:6px;background:var(--card);display:flex;flex-direction:column;gap:10px}
+.asks h2{margin:0;font-size:18px}
+.asks p{margin:0;color:var(--muted);max-width:65ch;font-size:14px}
+.askrow{display:flex;gap:8px;align-items:flex-start}
+.askrow textarea{flex:1;min-width:0;min-height:44px;resize:vertical;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+.askrow button{padding:9px 14px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+#prompt-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+#prompt-list li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--band);border-radius:4px;min-width:0}
+#prompt-list span{flex:1;min-width:0;overflow-wrap:anywhere}
+#prompt-list button{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px}
+@media (max-width:640px){
+  .layer{padding:12px}
+  .layer-head{grid-template-columns:1fr}
+  .opts{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:82%;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px;overscroll-behavior-x:contain}
+  .opt{scroll-snap-align:start}
+}
+{% endblock %}
+{% block wall %}
+{% for l in layers %}
+  <section class="layer" data-layer="{{ l.name }}" aria-labelledby="h-{{ l.name }}">
+    <div class="layer-head">
+      <h2 id="h-{{ l.name }}">{{ LABELS.get(l.name, l.name) }}<small>{{ HINTS.get(l.name, "") }} · <span class="layer-state" data-layer="{{ l.name }}">no pick</span></small></h2>
+      <textarea class="layer-note" id="layer-note-{{ l.name }}" data-layer="{{ l.name }}" rows="1" placeholder="Note on {{ LABELS.get(l.name, l.name)|lower }} as a whole" aria-label="Note on the {{ LABELS.get(l.name, l.name)|lower }} layer"></textarea>
+    </div>
+    <div class="opts">
+    {% for it in l.options %}
+      <figure class="item opt" id="{{ it.id|replace(':', '-') }}" data-id="{{ it.id }}" data-group="{{ l.name }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+        <img src="{{ it.src }}" alt="{{ LABELS.get(l.name, l.name) }} option: {{ it.label }}" loading="lazy">
+        <figcaption class="meta">
+          <b>{{ it.label }} <code>{{ it.id }}</code></b>
+          {% if it.detail %}<span>{{ it.detail }}</span>{% endif %}
+        </figcaption>
+        <div class="votes">
+          {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="{{ v.label }} {{ it.label }} for {{ LABELS.get(l.name, l.name)|lower }}">{{ v.label }}</button>{% endfor %}
+        </div>
+        <div class="extra">
+          <textarea class="item-note" id="note-{{ it.id|replace(':', '-') }}" rows="1" placeholder="Note" aria-label="Note on {{ it.label }}"></textarea>
+          <button type="button" class="more" aria-pressed="false" aria-label="More options like {{ it.label }}">More like this</button>
+        </div>
+      </figure>
+    {% endfor %}
+    </div>
+  </section>
+{% endfor %}
+{% endblock %}
+{% block after_wall %}
+<section class="asks" aria-labelledby="asks-h">
+  <h2 id="asks-h">Ask for a change</h2>
+  <p>Describe anything to try next pass, in your own words. Each request is tried in the next pass.</p>
+  <div class="askrow">
+    <textarea id="prompt" rows="2" maxlength="600" placeholder="e.g. Try the cards with no border and a softer shadow"></textarea>
+    <button type="button" id="prompt-add">Add request</button>
+  </div>
+  <ul id="prompt-list" aria-label="Requests for the next pass"></ul>
+</section>
+{% endblock %}
+{% block script %}
+  const layerNotes = [...document.querySelectorAll(".layer-note")];
+  const layerStates = [...document.querySelectorAll(".layer-state")];
+  const promptBox = document.getElementById("prompt"), promptAdd = document.getElementById("prompt-add");
+  const promptList = document.getElementById("prompt-list");
+  const pickIn = layer => cards.find(el => el.dataset.group === layer && get(el.dataset.id).vote === "pick");
+  hooks.push(() => {
+    let picked = 0;
+    layerStates.forEach(s => {
+      const el = pickIn(s.dataset.layer);
+      if (el) picked++;
+      s.textContent = el ? `picked ${el.querySelector(".meta b").firstChild.textContent.trim()}` : "no pick";
+    });
+    count.textContent = `${picked} of ${layerStates.length} layer${layerStates.length === 1 ? "" : "s"} picked`;
+    cards.forEach(el => el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => {
+      b.textContent = b.getAttribute("aria-pressed") === "true" ? "Picked" : "Pick";
+    }));
+    layerNotes.forEach(ta => { if (document.activeElement !== ta) ta.value = get(ta.dataset.layer).note || ""; });
+    promptList.replaceChildren(...state.prompts.map((p, i) => {
+      const li = document.createElement("li"), s = document.createElement("span"), x = document.createElement("button");
+      s.textContent = p; x.type = "button"; x.textContent = "Remove"; x.disabled = !ref;
+      x.setAttribute("aria-label", `Remove request ${p.slice(0, 40)}`);
+      x.addEventListener("click", () => { state.prompts.splice(i, 1); paint(); save(); });
+      li.append(s, x); return li;
+    }));
+  });
+  if (!ref) [...layerNotes, promptBox, promptAdd].forEach(c => { c.disabled = true; });
+  layerNotes.forEach(ta => {
+    const id = ta.dataset.layer;
+    ta.addEventListener("input", () => { put(id, { ...get(id), note: ta.value }); saveSoon(); });
+    ta.addEventListener("change", () => { put(id, { ...get(id), note: ta.value.trim() }); paint(); save(); });
+  });
+  const addPrompt = () => {
+    const p = promptBox.value.trim();
+    if (!p) { status.textContent = "Write the request first."; promptBox.focus(); return; }
+    if (!state.prompts.includes(p)) state.prompts.push(p);
+    promptBox.value = ""; paint(); save();
+  };
+  promptAdd.addEventListener("click", addPrompt);
+  promptBox.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addPrompt(); } });
+{% endblock %}
