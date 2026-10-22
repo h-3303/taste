@@ -1,0 +1,589 @@
+{
+ "aerial_asphalt_01": {
+  "type": 1,
+  "tags": [
+   "road",
+   "flat",
+   "cracked"
+  ],
+  "date_published": 1597061145,
+  "name": "Aerial Asphalt 01",
+  "categories": [
+   "asphalt",
+   "outdoor",
+   "floor",
+   "road",
+   "man made",
+   "aerial"
+  ],
+  "dimensions": [
+   30000,
+   30000
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "cdf3c8f091b3589407bdf0697a2deb2c6b40650d",
+  "description": "Free 8K asphalt texture of a flat, worn road with subtle cracks, faint tire marks and gritty surface - ideal for aerial, outdoor, road and floor scenes.",
+  "category_id": "8871debe-40cf-5e4d-a5e5-1ddfe979f14f",
+  "category": "Asphalt & Bitumen/Asphalt/Worn Road Surface",
+  "attributes": {
+   "surface_use": "floor",
+   "condition": [
+    "weathered",
+    "cracked",
+    "worn"
+   ],
+   "origin": "man_made",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "151f24f1",
+  "download_count": 147455,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_asphalt_01.png?width=256&height=256&format=webp&v=151f24f1"
+ },
+ "aerial_beach_01": {
+  "type": 1,
+  "tags": [
+   "beach",
+   "wavy",
+   "costal",
+   "ocean",
+   "seaside"
+  ],
+  "date_published": 1601489165,
+  "name": "Aerial Beach 01",
+  "categories": [
+   "terrain",
+   "sand",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "dimensions": [
+   30000,
+   30000
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "b25ab01641da8f9b025dabf1f057e0ab8d2124de",
+  "description": "Free 8K texture of aerial beach sand with wavy, wind-sculpted ripples - fine-grained, low-gloss sandy surface ideal for coastal terrain and outdoor scenes.",
+  "category_id": "2bed9a9d-8f5f-5f1f-815c-e33cfa63bf69",
+  "category": "Ground & Terrain/Sand/Beach & Coastal Sand",
+  "attributes": {
+   "surface_use": "ground",
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true,
+   "condition": [
+    "clean"
+   ]
+  },
+  "img_version": "55c081c4",
+  "download_count": 159566,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_beach_01.png?width=256&height=256&format=webp&v=55c081c4"
+ },
+ "aerial_beach_02": {
+  "type": 1,
+  "tags": [
+   "beach",
+   "flat",
+   "costal",
+   "ocean",
+   "seaside"
+  ],
+  "date_published": 1609950183,
+  "sponsors": [
+   "42579608"
+  ],
+  "name": "Aerial Beach 02",
+  "categories": [
+   "terrain",
+   "sand",
+   "natural",
+   "outdoor",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   20000.011444091797,
+   20000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "c1b18f5ec3ebf888e2dbd57c6cd2dd72a7bc3293",
+  "description": "Free 8K texture of flat coastal sand with fine grains, moist dark patches and subtle ripple patterns - an aerial-ready material for terrain and seaside scenes.",
+  "category_id": "2bed9a9d-8f5f-5f1f-815c-e33cfa63bf69",
+  "category": "Ground & Terrain/Sand/Beach & Coastal Sand",
+  "attributes": {
+   "surface_use": "ground",
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true,
+   "condition": [
+    "clean"
+   ]
+  },
+  "img_version": "e9df1cb6",
+  "download_count": 36770,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_beach_02.png?width=256&height=256&format=webp&v=e9df1cb6"
+ },
+ "aerial_beach_03": {
+  "type": 1,
+  "tags": [
+   "beach",
+   "seaside",
+   "sand",
+   "trampled",
+   "uneven",
+   "brown",
+   "footprints",
+   "costal",
+   "ocean"
+  ],
+  "date_published": 1632960000,
+  "name": "Aerial Beach 03",
+  "categories": [
+   "outdoor",
+   "terrain",
+   "sand",
+   "natural",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   19999.950408935547,
+   20000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "2deaf3ec2538aeb11993aa95ef89a979d2a7eb34",
+  "description": "Free 8K texture of trampled coastal sand, brown and uneven with footprints, tire tracks, subtle grain and compacted ridges for a realistic beach surface.",
+  "category_id": "2262e1f2-20db-5ba4-9915-764041ba9c4c",
+  "category": "Ground & Terrain/Sand/Compacted & Trampled Sand",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "worn"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "40a1f2c0",
+  "download_count": 17042,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_beach_03.png?width=256&height=256&format=webp&v=40a1f2c0"
+ },
+ "aerial_grass_rock": {
+  "type": 1,
+  "tags": [
+   "moss",
+   "grass",
+   "cliff",
+   "cave",
+   "rock face"
+  ],
+  "date_published": 1582514587,
+  "name": "Aerial Grass Rock",
+  "categories": [
+   "terrain",
+   "rock",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   15000,
+   15000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "sponsors": [
+   "76058381"
+  ],
+  "files_hash": "d610669c24e20d7c2effc4c116c718176f5b044a",
+  "description": "Free 8K aerial rock texture with moss and grass, rough weathered stone with fine gravel and earthy green-brown tones.",
+  "category_id": "e8121dc9-96d3-59b8-b8ee-83104e60ba82",
+  "category": "Stone/Rock & Cliffs/Mossy & Lichened Rock",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "mossy",
+    "weathered"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "da74fb8a",
+  "download_count": 365189,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_grass_rock.png?width=256&height=256&format=webp&v=da74fb8a"
+ },
+ "aerial_ground_rock": {
+  "type": 1,
+  "tags": [
+   "mud",
+   "rocks",
+   "stones",
+   "dirt",
+   "dry"
+  ],
+  "date_published": 1581826348,
+  "name": "Aerial Ground Rock",
+  "categories": [
+   "terrain",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "dimensions": [
+   19999.950408935547,
+   20000
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "sponsors": [
+   "7934315"
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "dfc637c0aca2c8bf1864528b9d586681cbcf8c88",
+  "description": "Free 8K texture of dry aerial ground: compacted brown dirt with exposed rocks, scattered stones, dust and subtle moss on a rough, cracked surface.",
+  "category_id": "c650da98-1200-549c-ade9-c3756c2f327c",
+  "category": "Ground & Terrain/Rocky Ground/Stony Dirt",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "weathered",
+    "cracked"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "93cf8cab",
+  "download_count": 32501,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_ground_rock.png?width=256&height=256&format=webp&v=93cf8cab"
+ },
+ "aerial_mud_1": {
+  "type": 1,
+  "date_published": 1603110467,
+  "name": "Aerial Mud 1",
+  "categories": [
+   "terrain",
+   "road",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   8000,
+   8000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "sponsors": [
+   "4714267"
+  ],
+  "files_hash": "5adf0c7d8bed039838ff939e18b9dc801303b9a5",
+  "tags": [
+   "mud",
+   "tracks",
+   "tire tracks",
+   "wet soil",
+   "uneven surface",
+   "ruts",
+   "surface depressions"
+  ],
+  "description": "Free 8K texture of dark wet mud with pronounced tire tracks, ruts and uneven surface depressions, glossy wet sheen and clumped, soft soil detail.",
+  "category_id": "da4a03e2-d438-5c20-8e81-7231e7735d91",
+  "category": "Ground & Terrain/Soil & Mud/Tire-Tracked Mud",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "weathered",
+    "worn"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "b97c8617",
+  "download_count": 26604,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_mud_1.png?width=256&height=256&format=webp&v=b97c8617"
+ },
+ "aerial_rocks_01": {
+  "type": 1,
+  "tags": [
+   "rocks",
+   "moss",
+   "cliff",
+   "rock face",
+   "cave"
+  ],
+  "date_published": 1596531311,
+  "name": "Aerial Rocks 01",
+  "categories": [
+   "terrain",
+   "outdoor",
+   "natural",
+   "rock",
+   "aerial"
+  ],
+  "dimensions": [
+   80000,
+   80000.20599365234
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "ea281839fd9f0d5d67f3cc675bddbac76ef26b27",
+  "description": "Free 8K texture: aerial rock face with scattered stones and patchy green moss, rough weathered surfaces, coarse grain and damp-looking crevices.",
+  "category_id": "e8121dc9-96d3-59b8-b8ee-83104e60ba82",
+  "category": "Stone/Rock & Cliffs/Mossy & Lichened Rock",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "mossy",
+    "weathered"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "433c76b8",
+  "download_count": 124951,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_rocks_01.png?width=256&height=256&format=webp&v=433c76b8"
+ },
+ "aerial_rocks_02": {
+  "type": 1,
+  "tags": [
+   "rocks",
+   "rough",
+   "moss",
+   "cliff",
+   "rock face",
+   "cave"
+  ],
+  "date_published": 1600274572,
+  "name": "Aerial Rocks 02",
+  "categories": [
+   "terrain",
+   "outdoor",
+   "natural",
+   "rock",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   50000,
+   50000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "sponsors": [
+   "128081732"
+  ],
+  "files_hash": "76c3c2d202e28839b72e336a5b1839e58e2da2e3",
+  "description": "Free 8K texture of rough weathered cliff rock, showing coarse stone faces, deep fractures and patches of green moss.",
+  "category_id": "bf84369c-cc7c-5347-ad17-173353e859b8",
+  "category": "Stone/Rock & Cliffs/Rough Rock Faces",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "mossy",
+    "weathered"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "8146a458",
+  "download_count": 400609,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_rocks_02.png?width=256&height=256&format=webp&v=8146a458"
+ },
+ "aerial_rocks_04": {
+  "type": 1,
+  "tags": [
+   "rough",
+   "rocks",
+   "moss",
+   "cliff",
+   "rock face",
+   "cave"
+  ],
+  "date_published": 1602692912,
+  "name": "Aerial Rocks 04",
+  "categories": [
+   "terrain",
+   "outdoor",
+   "natural",
+   "rock",
+   "aerial"
+  ],
+  "dimensions": [
+   80000,
+   80000
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "sponsors": [
+   "26820710"
+  ],
+  "files_hash": "dc43dffab8e915bc54ac64899dcfe8cec826f8b9",
+  "description": "Free 8K texture of rough, moss-covered cliff rock with weathered cracks, exposed stone, deep crevices and subtle lichen staining.",
+  "category_id": "e8121dc9-96d3-59b8-b8ee-83104e60ba82",
+  "category": "Stone/Rock & Cliffs/Mossy & Lichened Rock",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "mossy",
+    "weathered"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "a9b1d6d2",
+  "download_count": 223218,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_rocks_04.png?width=256&height=256&format=webp&v=a9b1d6d2"
+ },
+ "aerial_sand": {
+  "type": 1,
+  "tags": [
+   "sand",
+   "costal",
+   "seaside",
+   "ocean",
+   "sea"
+  ],
+  "date_published": 1581908332,
+  "name": "Aerial Sand",
+  "categories": [
+   "terrain",
+   "sand",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   15000,
+   15000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "565565540b90dade32a407cdd8315dd05684d05e",
+  "description": "Free 8K texture of aerial coastal sand: tan, compacted ripples with tire and foot ruts, fine grain, rough bumps and subtle wet-dark patches.",
+  "category_id": "2262e1f2-20db-5ba4-9915-764041ba9c4c",
+  "category": "Ground & Terrain/Sand/Compacted & Trampled Sand",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "worn"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "40159aed",
+  "download_count": 36961,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_sand.png?width=256&height=256&format=webp&v=40159aed"
+ },
+ "aerial_wood_snips": {
+  "type": 1,
+  "date_published": 1596609502,
+  "name": "Aerial Wood Snips",
+  "categories": [
+   "terrain",
+   "outdoor",
+   "natural",
+   "aerial"
+  ],
+  "authors": {
+   "Rob Tuytel": "All"
+  },
+  "dimensions": [
+   30000,
+   30000
+  ],
+  "max_resolution": [
+   8192,
+   8192
+  ],
+  "files_hash": "10863415560eb62435394a475fabfd95430efd26",
+  "tags": [
+   "rough",
+   "wood",
+   "mud",
+   "dirt",
+   "wood chips",
+   "wood splinters",
+   "tire tracks",
+   "organic debris",
+   "earth"
+  ],
+  "description": "Free 8K aerial wood-and-mud texture: rough compacted earth with wood chips, splinters and subtle tire tracks; gritty, granular, organic debris surface.",
+  "category_id": "f5a6cc7b-b773-5091-a757-09cbd29ee323",
+  "category": "Ground & Terrain/Forest Floor/Mulch & Wood Chips",
+  "attributes": {
+   "surface_use": "ground",
+   "condition": [
+    "worn"
+   ],
+   "origin": "natural",
+   "setting": "outdoor",
+   "aerial": true
+  },
+  "img_version": "62a24d3c",
+  "download_count": 15672,
+  "thumbnail_url": "https://cdn.polyhaven.com/asset_img/thumbs/aerial_wood_snips.png?width=256&height=256&format=webp&v=62a24d3c"
+ }
+}

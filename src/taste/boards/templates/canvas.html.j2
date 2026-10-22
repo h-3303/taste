@@ -1,0 +1,162 @@
+<title>{{ title }} moodboards</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+{% for u in font_urls %}<link rel="stylesheet" href="{{ u }}">
+{% endfor %}
+<style>
+:root{--bg:#efe9df;--ink:#1d1b18;--muted:#6b645a;--card:#faf7f2;--tape:rgba(240,226,170,.75);--accent:#c2410c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171513;--ink:#eee7dc;--muted:#a39b8f;--card:#22201d;--tape:rgba(200,180,110,.45);--accent:#fb923c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171513;--ink:#eee7dc;--muted:#a39b8f;--card:#22201d;--tape:rgba(200,180,110,.45);--accent:#fb923c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif;padding-block:24px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{max-width:1500px;margin:0 auto 20px}
+header.top h1{margin:0;font-size:clamp(22px,4vw,34px)}
+header.top p{margin:4px 0 0;color:var(--muted)}
+#status{margin-top:8px;font-weight:600;color:var(--accent)}
+.boards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,640px),1fr));gap:28px;max-width:1500px;margin:0 auto}
+.board{background:var(--card);border-radius:6px;padding:20px;box-shadow:0 2px 0 rgba(0,0,0,.06),0 12px 30px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:14px}
+.board.chosen{outline:3px solid var(--accent)}
+.board h2{margin:0;font-size:clamp(28px,4vw,44px);line-height:1}
+.why{margin:0;color:var(--muted)}
+.collage{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:110px;gap:6px;padding:10px 4px}
+.collage figure{margin:0;position:relative;transform:rotate(var(--t));box-shadow:0 3px 10px rgba(0,0,0,.18);background:#fff;padding:4px}
+.collage figure.big{grid-column:span 2;grid-row:span 2}
+.collage figure:nth-child(3n){margin:-10px 0 0 -10px;z-index:2}
+.collage figure::before{content:"";position:absolute;top:-8px;left:30%;width:46px;height:16px;background:var(--tape);transform:rotate(-4deg);z-index:3}
+.collage img{width:100%;height:100%;object-fit:cover;display:block}
+.collage figcaption{position:absolute;inset:auto 4px 4px 4px;font-size:11px;background:rgba(0,0,0,.6);color:#fff;padding:2px 5px;opacity:0;transition:opacity .15s}
+.collage figure:hover figcaption,.collage figure:focus-within figcaption{opacity:1}
+.collage figcaption a{color:inherit}
+@media (hover:none){.collage figcaption{opacity:1}}
+.swatches{display:flex;gap:0;height:38px;border-radius:4px;overflow:hidden}
+.swatches span{flex:1;display:flex;align-items:flex-end;padding:3px 5px;font:11px ui-monospace,monospace;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.type{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.type .display{font-size:40px;line-height:1}
+.type small{color:var(--muted)}
+.motifs{display:flex;gap:6px;flex-wrap:wrap}
+.motifs span{border:1px solid var(--muted);border-radius:99px;padding:1px 9px;font-size:12px}
+.pick{display:flex;gap:8px;flex-wrap:wrap}
+.pick input{flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--muted);border-radius:4px;background:transparent;color:var(--ink)}
+.pick button{padding:8px 16px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font-weight:600;cursor:pointer}
+.pick button:disabled{opacity:.4;cursor:default}
+.sec{margin:6px 0 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.masonry{columns:4 150px;column-gap:8px}
+.masonry figure{margin:0 0 8px;break-inside:avoid;position:relative}
+.masonry img{width:100%;display:block;border-radius:3px}
+.masonry figcaption{font-size:11px;color:var(--muted);padding:2px 0}
+.masonry figcaption a{color:inherit}
+.pals{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.pal{border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid rgba(127,127,127,.3)}
+.chips{display:flex;gap:4px}.chips span{width:22px;height:22px;border-radius:50%;border:1px solid rgba(127,127,127,.4)}
+.pal small{font:11px ui-monospace,monospace}
+.pair{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid rgba(127,127,127,.25)}
+.pair .fd{font-size:30px;line-height:1.1}.pair .fm{font-size:14px}.pair small{color:var(--muted)}
+.comps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.comps small,.comps span{color:var(--muted)}.comps a{color:var(--ink)}
+@media (max-width:520px){.collage{grid-template-columns:repeat(2,1fr)}.collage figure.big{grid-column:span 2}}
+</style>
+<header class="top">
+  <h1>{{ title }}: {{ boards|length }} directions</h1>
+  <p>Hover an image for its source. Choose one direction; add a note for mixes ("this, with 3's palette").</p>
+  <div id="status" role="status"></div>
+</header>
+<main class="boards">
+{% for b in boards %}
+  <section class="board" id="board-{{ b.id }}">
+    <h2 style="font-family:'{{ b.type.display }}',serif">{{ b.id }}. {{ b.name }}</h2>
+    <p class="why">{{ b.rationale }}</p>
+    {% if b.groups %}
+    {% for g in b.groups %}
+    <h3 class="sec">{{ g.label }}</h3>
+    <div class="masonry">
+    {% for it in g["items"] %}
+      <figure>
+        <img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">
+        <figcaption>{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.source_note }}</a>{% else %}{{ it.source_note }}{% endif %} · {{ it.id }}</figcaption>
+      </figure>
+    {% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="collage">
+    {% for it in b["items"] %}
+      <figure class="{{ 'big' if it.big }}" style="--t:{{ it.tilt }}deg">
+        <img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">
+        <figcaption>{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.source_note }}</a>{% else %}{{ it.source_note }}{% endif %} · {{ it.id }}</figcaption>
+      </figure>
+    {% endfor %}
+    </div>
+    {% endif %}
+    <div class="swatches">{% for c in b.palette %}<span style="background:{{ c }}">{{ c }}</span>{% endfor %}</div>
+    <div class="type">
+      <span class="display" style="font-family:'{{ b.type.display }}',serif">Aa</span>
+      <span style="font-family:'{{ b.type.text }}',sans-serif">The quick brown fox jumps over the lazy dog.</span>
+      <small>{{ b.type.display }} / {{ b.type.text }}</small>
+    </div>
+    {% if b.pals %}
+    <h3 class="sec">Palettes</h3>
+    <div class="pals">
+    {% for pl in b.pals %}
+      <div class="pal" style="background:{{ pl.roles.bg }};color:{{ pl.roles.text or '#000000' }}">
+        <b>{{ pl.label }}</b>
+        <div class="chips">{% for r, c in pl.roles.items() %}<span title="{{ r }}" style="background:{{ c }}"></span>{% endfor %}</div>
+        <small>{% for r, v in pl.ratios.items() %}{{ r }} {{ "%.1f"|format(v) }}:1{% if not loop.last %} · {% endif %}{% endfor %}</small>
+      </div>
+    {% endfor %}
+    </div>
+    {% endif %}
+    {% if b.fonts %}
+    <h3 class="sec">Fonts</h3>
+    {% for f in b.fonts %}
+      <div class="pair">
+        <span class="fd" style="font-family:'{{ f.display }}',serif">{{ f.display }}</span>
+        <span style="font-family:'{{ f.text }}',sans-serif">{{ f.text }}: the quick brown fox jumps over the lazy dog.</span>
+        {% if f.mono %}<span class="fm" style="font-family:'{{ f.mono }}',monospace">ISO 400 · 1/250 · f/1.7 · +0.3 EV</span>{% endif %}
+        <small>{{ f.licence }}{% if f.note %} · {{ f.note }}{% endif %}</small>
+      </div>
+    {% endfor %}
+    {% endif %}
+    {% if b.comps %}
+    <h3 class="sec">Components</h3>
+    <ul class="comps">
+    {% for c in b.comps %}
+      <li>{% if c.link %}<a href="{{ c.link }}" target="_blank" rel="noopener">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %} <small>{{ c.kind }} · {{ c.licence }}</small>{% if c.note %}<br><span>{{ c.note }}</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    <div class="motifs">{% for m in b.motifs %}<span>{{ m }}</span>{% endfor %}</div>
+    <div class="pick">
+      <input type="text" placeholder="Note (optional)" data-note="{{ b.id }}" aria-label="Note for {{ b.name }}">
+      <button type="button" data-choose="{{ b.id }}" data-name="{{ b.name }}" disabled>Choose this</button>
+    </div>
+  </section>
+{% endfor %}
+</main>
+<script>
+(async () => {
+  const status = document.getElementById("status");
+  const buttons = [...document.querySelectorAll("[data-choose]")];
+  const mark = (id, note) => {
+    document.querySelectorAll(".board").forEach(b => b.classList.toggle("chosen", b.id === "board-" + id));
+    status.textContent = id ? `Chosen: ${id}${note ? " (" + note + ")" : ""}. Tell Claude you've picked.` : "";
+  };
+  let db;
+  try { db = window.claude ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) { status.textContent = "Picking isn't available here: reply with the board number in Claude Code."; return; }
+  const ref = db.doc("picks/current");
+  try { const s = await ref.get(); if (s.exists) { const d = s.data(); mark(d.direction_id, d.note); } } catch (e) {}
+  buttons.forEach(btn => {
+    btn.disabled = false;
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.choose;
+      const note = document.querySelector(`[data-note="${id}"]`).value.trim();
+      buttons.forEach(b => b.disabled = true);
+      try {
+        await ref.set({ direction_id: id, name: btn.dataset.name, note, at: new Date().toISOString() });
+        mark(id, note);
+      } catch (e) {
+        status.textContent = "Couldn't save the pick: reply with the board number in Claude Code.";
+      } finally { buttons.forEach(b => b.disabled = false); }
+    });
+  });
+})();
+</script>
