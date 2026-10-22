@@ -21,6 +21,11 @@ MIN_POOL = 24
 
 
 def cmd_new(a):
+    from taste import seed
+    from taste.library import db, paths
+    if seed.library_is_empty(db.connect(paths.db_path())):
+        print(seed.EMPTY_MESSAGE, file=sys.stderr)
+        return 1
     run = Run.create(a.slug)
     lib = []
     run.write("library.json", lib)

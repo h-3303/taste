@@ -85,6 +85,8 @@ def test_connect_path(env):
 
 
 def test_boards_commands_at_top_level(env, capsys):
+    from tests.boards.conftest import fill_library
+    fill_library()
     assert cli.main(["new", "demo"]) == 0
     assert "run:" in capsys.readouterr().out
 

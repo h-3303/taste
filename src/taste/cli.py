@@ -1,6 +1,7 @@
 """The `taste` command: moodboards at the top level, the design library under `lib`."""
 import argparse
 import sys
+from pathlib import Path
 
 from . import config
 
@@ -10,7 +11,8 @@ _USAGE = """usage: taste <command> [args]
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
 sync:        sync [source ...]            (API/repo sources only)
-maintainer:  maintainer sync|install-timer
+seed:        seed install [ARCHIVE]
+maintainer:  maintainer sync|install-timer|seed-build OUT
 connectors:  connect <name> [--path P] [--bin B] | disconnect <name> | connectors
              --version
 """
@@ -60,10 +62,41 @@ def _cmd_sync(rest: list[str]) -> int:
 
 
 def _cmd_maintainer(rest: list[str]) -> int:
+    if rest and rest[0] == "seed-build":
+        if len(rest) != 2:
+            print("usage: taste maintainer seed-build OUT", file=sys.stderr)
+            return 1
+        from . import seed
+        from .library import db, paths
+        conn = db.connect(paths.db_path())
+        rep = seed.build_seed(conn, paths.thumbs_dir(), Path(rest[1]))
+        print(f"seed: {rep.files} files, {rep.links} links, {rep.skipped} skipped -> {rest[1]}")
+        return 0
     if not rest or rest[0] not in ("sync", "install-timer"):
-        print("usage: taste maintainer sync|install-timer", file=sys.stderr)
+        print("usage: taste maintainer sync|install-timer|seed-build OUT", file=sys.stderr)
         return 1
     return _lib(rest)
+
+
+def _cmd_seed(rest: list[str]) -> int:
+    if not rest or rest[0] != "install" or len(rest) > 2:
+        print("usage: taste seed install [ARCHIVE]", file=sys.stderr)
+        return 1
+    from . import seed
+    from .library import db, paths
+    paths.ensure_dirs()
+    archive = Path(rest[1]) if len(rest) == 2 else None
+    if archive is None:
+        archive = paths.data_root() / "taste-seed.zip"
+        print(f"downloading {seed.SEED_URL}")
+        try:
+            seed.download(seed.SEED_URL, archive)
+        except Exception as e:
+            print(f"error: could not download the seed: {e}", file=sys.stderr)
+            return 1
+    conn = db.connect(paths.db_path())
+    print(f"seed: {seed.install_seed(archive, conn, paths.thumbs_dir())} items installed")
+    return 0
 
 
 def _cmd_connect(rest: list[str]) -> int:
@@ -102,7 +135,7 @@ def _cmd_connectors(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer,
+_COMMANDS = {"lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 
