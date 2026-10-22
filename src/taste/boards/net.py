@@ -3,12 +3,23 @@ from pathlib import Path
 
 import httpx
 
-UA = "moodboards/0.1 (personal moodboard research tool)"
+from taste.library.fetch import UA, FetchError, RateLimiter, banned
 
 
 class Http:
-    def __init__(self, timeout: float = 30.0):
-        self.client = httpx.Client(timeout=timeout, follow_redirects=True, headers={"User-Agent": UA})
+    """Plain HTTP for the boards: the same banned-host rule as taste.library.fetch on every request,
+    redirect hops included, and the same 1 req/s per host pacing."""
+
+    def __init__(self, timeout: float = 30.0, transport=None, limiter=None):
+        self.limiter = limiter or RateLimiter()
+        self.client = httpx.Client(timeout=timeout, follow_redirects=True, headers={"User-Agent": UA},
+                                   transport=transport, event_hooks={"request": [self._on_request]})
+
+    def _on_request(self, request: httpx.Request) -> None:
+        url = str(request.url)
+        if banned(url):
+            raise FetchError(f"banned host: {url}")
+        self.limiter.wait(url)
 
     def _retry(self, fn):
         try:

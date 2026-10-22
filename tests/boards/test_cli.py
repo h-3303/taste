@@ -251,13 +251,16 @@ def test_gather_folder_connectors(tmp_path, monkeypatch):
     assert taste_main(["connect", "folder-notes", "--path", str(notes)]) == 0
     fetched = []
 
-    class Http:
-        def download(self, url, dest):
+    class Fetcher:
+        def download(self, url, dest, headers=None):
             fetched.append(url)
             dest.parent.mkdir(parents=True, exist_ok=True)
             Image.effect_noise((800, 600), 80).convert("RGB").save(dest, "PNG")
             return dest
-    monkeypatch.setattr("taste.boards.net.Http", Http)
+
+        def close(self):
+            pass
+    monkeypatch.setattr("taste.library.fetch.Fetcher", Fetcher)
     assert main(["new", "F"]) == 0
     run = next((tmp_path / "data" / "runs").iterdir())
     (run / "refs.json").write_text(json.dumps({"styles": []}))

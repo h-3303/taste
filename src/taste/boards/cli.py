@@ -57,12 +57,15 @@ def dlib_pluck(item_id: str, out: Path) -> dict | None:
     return {"path": str(r.path), "title": meta.get("title", item_id), "page_url": meta.get("page_url", "")}
 
 
-def connector_candidates(conns, dest: Path, http=None):
-    """Untagged candidates from the folder connectors: local images as they are, image URLs downloaded,
-    any other URL skipped (a link to a page is not an image)."""
+def connector_candidates(conns, dest: Path, fetch=None):
+    """Untagged candidates from the folder connectors: local images as they are, image URLs downloaded
+    through the polite fetcher (banned hosts refused on every redirect hop, paced per host), any other URL
+    skipped (a link to a page is not an image)."""
     from taste.connectors.folders import FolderImages, FolderNotes, is_image_url
-    from taste.library.fetch import banned
+    from taste.library import fetch as lfetch
+    banned = lfetch.banned
     cands, failures = [], []
+    own = None
     for c in conns:
         if not isinstance(c, (FolderImages, FolderNotes)):
             continue
@@ -73,15 +76,17 @@ def connector_candidates(conns, dest: Path, http=None):
                 if banned(it["url"]):
                     failures.append(f"{it['url']}: banned host")
                     continue
-                from .net import Http
-                http = http or Http()
+                if fetch is None:
+                    fetch = own = lfetch.Fetcher()
                 target = dest / "folder" / f"{c.name}-{n}{Path(it['url'].split('?')[0]).suffix.lower()}"
                 try:
-                    http.download(it["url"], target)
+                    fetch.download(it["url"], target)
                 except Exception as e:   # one dead link must not stop the gather
                     failures.append(f"{it['url']}: {e}")
                     continue
                 cands.append(Candidate("folder", target, it["url"], it["note"] or c.name, it["title"]))
+    if own is not None:
+        own.close()
     return cands, failures
 
 
@@ -116,7 +121,7 @@ def cmd_gather(a):
             if isinstance(c, InstagramMedia):
                 for it in c.for_codes(st.get("vault_posts", [])):
                     cands.append(Candidate("vault", Path(it["path"]), it["source_url"], it["note"], it["title"], st["id"]))
-    c, f = connector_candidates(conns, run.raw, http)
+    c, f = connector_candidates(conns, run.raw)
     cands += c; failures += f
     for st in styles:
         for iid in [*st.get("dlib_ids", []), *(a.dlib or [])]:
@@ -158,7 +163,13 @@ def cmd_inbox_add(a):
     while target.exists():
         n += 1
         target = folder / f"{Path(name).stem}-{n}{Path(name).suffix}"
-    Http().download(a.image_url, target)
+    import httpx
+    from taste.library.fetch import FetchError
+    try:
+        Http().download(a.image_url, target)
+    except (FetchError, httpx.HTTPError) as e:
+        print(f"error: not added: {e}")
+        return 1
     with open(folder / "sources.txt", "a", encoding="utf-8") as f:
         title = a.title or f"{a.note} · {Path(urlparse(a.source).path).name or urlparse(a.source).netloc}"
         f.write(f"{target.name}\t{a.source}\t{a.note}\t{title}\n")
