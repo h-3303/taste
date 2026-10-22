@@ -15,6 +15,7 @@ profile:     profile show | profile project RUN [--project DIR] | profile apply 
 pages:       library-page --out DIR [--query Q] [--kind K] [--no-fetch]
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
+import:      import [--dlib DIR] [--moodboards DIR] [--project DIR ...]
 sync:        sync [source ...]            (API/repo sources only)
 seed:        seed install [ARCHIVE]
 maintainer:  maintainer sync|install-timer|seed-build OUT
@@ -309,6 +310,40 @@ def _cmd_profile(rest: list[str]) -> int:
     return 0
 
 
+def _cmd_import(rest: list[str]) -> int:
+    import json
+    import sqlite3
+    from . import importer, paths as tpaths
+    ap = argparse.ArgumentParser(prog="taste import")
+    ap.add_argument("--dlib"); ap.add_argument("--moodboards"); ap.add_argument("--project", action="append", default=[])
+    a = ap.parse_args(rest)
+    try:
+        if a.dlib:
+            from .library import db, paths
+            paths.ensure_dirs()
+            conn = db.connect(paths.db_path())
+            try:
+                print(f"{importer.import_library(Path(a.dlib), conn, paths.thumbs_dir())} library items imported")
+            finally:
+                conn.close()
+        if a.moodboards:
+            k = importer.import_runs(Path(a.moodboards), tpaths.runs_dir())
+            print(f"{k} run{'' if k == 1 else 's'} imported")
+            props = importer.import_profile(tpaths.runs_dir(), tpaths.profile_path())
+            if props:
+                out = tpaths.data_root() / "import-proposals.json"
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(json.dumps(props, indent=2, ensure_ascii=False), encoding="utf-8")
+                print(f"{len(props)} profile proposals written to {out} (review them before they join the profile)")
+        for p in a.project:
+            made = importer.import_project(Path(p))
+            print(f"{made} written" if made else f"{p}: nothing to do")
+    except (OSError, sqlite3.Error) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
@@ -320,7 +355,7 @@ def _cmd_gaps(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"round": _cmd_round, "refine": _cmd_refine, "profile": _cmd_profile, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+_COMMANDS = {"import": _cmd_import, "round": _cmd_round, "refine": _cmd_refine, "profile": _cmd_profile, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 
