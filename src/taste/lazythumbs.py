@@ -3,10 +3,30 @@ import json
 from pathlib import Path
 from urllib.parse import urlparse
 
+from PIL import Image, UnidentifiedImageError
+
 from .library import db, sync
-from .library.fetch import Blocked, FetchError
+from .library.fetch import Blocked, FetchError, is_challenge
 
 _GONE = (404, 410)
+
+
+class _Sniffing:
+    """Wraps a fetcher: a downloaded body that is a bot-challenge page raises Blocked (a 200 can carry one)."""
+
+    def __init__(self, fetch):
+        self._fetch = fetch
+
+    def __getattr__(self, name):
+        return getattr(self._fetch, name)
+
+    def download(self, url, dest, headers=None):
+        path = self._fetch.download(url, dest, headers)
+        with open(path, "rb") as f:
+            head = f.read(4096)
+        if is_challenge(head.decode("utf-8", "replace")):
+            raise Blocked(f"{url}: bot challenge")
+        return path
 
 
 def _host(item: dict) -> str:
@@ -27,6 +47,7 @@ def ensure_item_thumbs(conn, ids: list[str], fetch, thumbs_dir: Path) -> dict[st
     row alone; 429/challenge also skip the rest of that host for this call. No usable image URL is not dead."""
     thumbs_dir = Path(thumbs_dir)
     out: dict[str, Path | None] = {}
+    fetch = _Sniffing(fetch)
     blocked: set[str] = set()
     for iid in ids:
         item = db.get_item(conn, iid)
@@ -47,8 +68,10 @@ def ensure_item_thumbs(conn, ids: list[str], fetch, thumbs_dir: Path) -> dict[st
             if e.status in _GONE:
                 _mark_dead(conn, item)
             continue
-        except OSError:   # PIL could not read the body: it was not an image
+        except (UnidentifiedImageError, Image.DecompressionBombError):   # the body was not a usable image
             _mark_dead(conn, item)
+            continue
+        except OSError:   # local I/O trouble (disk, permissions): says nothing about the link
             continue
         if rel is None:
             continue

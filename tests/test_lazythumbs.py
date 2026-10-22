@@ -126,3 +126,23 @@ def test_sheet_draws_live_items_without_crashing(tmp_path):
     with Image.open(paths[0]) as im:
         assert im.size == (200, 100)   # two tiles on one row: the dead one is not drawn
     assert db.get_item(conn, gone)["meta"]["dead"] is True
+
+
+def test_local_oserror_is_not_dead(tmp_path, monkeypatch):
+    conn, (a,) = _seed(tmp_path, [("gal:a", "https://cdn.g.test/a.jpg", {})])[:2]
+    def boom(*_a, **_k):
+        raise PermissionError("thumbs dir not writable")
+    monkeypatch.setattr("taste.library.thumbs.make_thumb", boom)
+    assert ensure_item_thumbs(conn, [a], Scripted(files={"/a.jpg": png_bytes()}), tmp_path / "thumbs") == {a: None}
+    assert not db.get_item(conn, a)["meta"].get("dead")
+
+
+def test_200_challenge_page_is_blocked_not_dead(tmp_path):
+    conn, _ids = _seed(tmp_path, [("gal:a", "https://cdn.g.test/a.jpg", {}), ("gal:b", "https://cdn.g.test/b.jpg", {})])
+    a, b = (r["id"] for r in db.items_without_thumb(conn))
+    html = b"<html><head><title>Just a moment...</title></head><body>wait</body></html>"
+    f = Scripted(files={"/a.jpg": html, "/b.jpg": png_bytes()})
+    out = ensure_item_thumbs(conn, [a, b], f, tmp_path / "thumbs")
+    assert out == {a: None, b: None}
+    assert not db.get_item(conn, a)["meta"].get("dead")
+    assert [u for _, u in f.calls] == ["https://cdn.g.test/a.jpg"]   # host blocked for the rest of the call
