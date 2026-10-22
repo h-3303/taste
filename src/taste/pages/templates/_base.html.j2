@@ -85,6 +85,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   </figure>
 {% endfor %}{% endblock %}
 </main>
+{% block after_wall %}{% endblock %}
 <section class="page-foot">
   <div>
     <label for="page-note">Anything else</label>
@@ -109,6 +110,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   const pageNote = document.getElementById("page-note"), addUrl = document.getElementById("add-url");
   const addBtn = document.getElementById("add-url-btn"), links = document.getElementById("links");
   let state = { items: {}, combos: [], prompts: [], requests: [], note: "" }, filter = "", ref = null;
+  const hooks = [];   /* stage templates repaint their own controls here */
 
   const get = id => state.items[id] || { vote: null, note: "" };
   const put = (id, e) => { if (!e.vote && !e.note) delete state.items[id]; else state.items[id] = e; };
@@ -147,6 +149,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
     } else {
       count.textContent = `${cards.length} item${cards.length === 1 ? "" : "s"}${noted ? ` · ${noted} with notes` : ""}`;
     }
+    hooks.forEach(f => f());
   };
 
   document.querySelectorAll("[data-filter]").forEach(b => b.addEventListener("click", () => {
@@ -206,6 +209,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   };
   addBtn.addEventListener("click", add);
   addUrl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+{% block script %}{% endblock %}
   paint();
 })();
 </script>

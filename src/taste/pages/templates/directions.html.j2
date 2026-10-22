@@ -1,0 +1,183 @@
+{% extends "_base.html.j2" %}
+{% block title %}{{ title }} directions{% endblock %}
+{% block heading %}{{ title }}: {{ boards|length }} direction{{ "" if boards|length == 1 else "s" }}{% endblock %}
+{% block intro %}<p>Each direction is split into its palette, type, texture, components and imagery. Keep or drop a whole direction or any single part, and note why. To try a palette from one with the type of another, make a mix below: it comes back as a new direction next round.</p>{% endblock %}
+{% block note_hint %}Anything else? For example: direction 1 felt right until the components{% endblock %}
+{% block head %}{% for u in font_urls %}<link rel="stylesheet" href="{{ u }}">
+{% endfor %}{% endblock %}
+{% block style %}
+/* Layout: one column per direction (stacking on phone), each a stack of five part cards; the mixer sits under the columns. */
+:root{--part-label:.08em;--sel:#e7e2d8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sel:#2a2724}}
+:root[data-theme="dark"]{--sel:#2a2724}
+main.wall{columns:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start}
+.dir.item{margin:0;padding:16px;gap:12px;overflow:visible;min-width:0}
+.dir>.votes,.dir>.extra{border:1px solid var(--line);border-radius:4px}
+.dir h2{margin:0;font-size:clamp(24px,3vw,32px);line-height:1.05;text-wrap:balance;overflow-wrap:anywhere}
+.dir .id{font:12px ui-monospace,monospace;color:var(--muted);letter-spacing:.04em}
+.why{margin:0;color:var(--muted);font-size:14px}
+.part.item{margin:0;border-width:1px;min-width:0}
+.part .body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.part h3{margin:0;font-size:11.5px;letter-spacing:var(--part-label);text-transform:uppercase;color:var(--muted);font-weight:600}
+.part[data-tone="neg"] .body{opacity:.55}
+.part .votes button{padding:7px}
+.swatches{display:flex;height:44px;border-radius:4px;overflow:hidden}
+.swatches span{flex:1;min-width:0;display:flex;align-items:flex-end;padding:3px 4px;font:10.5px ui-monospace,monospace;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);overflow:hidden}
+.pals{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+.pal{border-radius:4px;padding:8px;display:flex;flex-direction:column;gap:4px;border:1px solid var(--line);font-size:12px}
+.chips{display:flex;gap:3px}.chips span{width:16px;height:16px;border-radius:50%;border:1px solid var(--line)}
+.spec .aa{font-size:44px;line-height:1}
+.spec p{margin:0;font-size:15px}
+.spec small,.pair small{color:var(--muted);font-size:12px}
+.pair{display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px solid var(--line)}
+.pair .fd{font-size:22px;line-height:1.1;overflow-wrap:anywhere}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.thumbs.tex{grid-template-columns:repeat(2,1fr)}
+.thumbs a,.thumbs span{display:block;min-width:0}
+.thumbs img{width:100%;max-width:100%;aspect-ratio:1;object-fit:cover;border-radius:3px;display:block;background:var(--line)}
+.none{margin:0;color:var(--muted);font-size:13px;font-style:italic}
+.comps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.comps small,.comps span{color:var(--muted)}.comps a{color:var(--ink)}
+.motifs{display:flex;gap:6px;flex-wrap:wrap}
+.motifs span{border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:12px;color:var(--muted)}
+.mixer{max-width:1600px;margin:28px auto 0;padding:18px;border:1px solid var(--line);border-radius:6px;background:var(--card);display:flex;flex-direction:column;gap:14px}
+.mixer h2{margin:0;font-size:20px}
+.mixer p{margin:0;color:var(--muted);max-width:65ch}
+.pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.pick label,.mixrow label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;letter-spacing:var(--part-label);text-transform:uppercase;color:var(--muted);min-width:0}
+.mixer select,.mixer input,.mixer textarea{width:100%;min-width:0;padding:7px 9px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px;text-transform:none;letter-spacing:0}
+.mixrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px;align-items:end}
+.mixrow textarea{min-height:38px;height:38px;resize:vertical}
+#mix-add{align-self:flex-start;padding:9px 16px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font:inherit;font-weight:600;cursor:pointer}
+#mixes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+#mixes li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--sel);border-radius:4px;min-width:0}
+#mixes .what{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;overflow-wrap:anywhere}
+#mixes small{color:var(--muted);font-size:12.5px}
+#mixes button{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px}
+{% endblock %}
+{% macro controls(id, label) %}
+    <div class="votes">
+      {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="{{ v.label }} {{ label }}">{{ v.label }}</button>{% endfor %}
+    </div>
+    <div class="extra">
+      <textarea class="item-note" id="note-{{ id|replace(':', '-') }}" rows="1" placeholder="Note" aria-label="Note on {{ label }}"></textarea>
+      <button type="button" class="more" aria-pressed="false" aria-label="Find more like {{ label }}">More like this</button>
+    </div>
+{% endmacro %}
+{% macro thumbs(list, cls="") %}
+<div class="thumbs {{ cls }}">{% for it in list %}{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener" title="{{ it.source_note }} · {{ it.id }}"><img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy"></a>{% else %}<span title="{{ it.source_note }} · {{ it.id }}"><img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy"></span>{% endif %}{% endfor %}</div>
+{% endmacro %}
+{% block wall %}
+{% for b in boards %}
+  <section class="item dir" data-id="{{ b.id }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+    <span class="id">Direction {{ b.id }}</span>
+    <h2 style="font-family:'{{ b.type.display }}',Georgia,serif">{{ b.name }}</h2>
+    <p class="why">{{ b.rationale }}</p>
+    {{ controls(b.id, "direction " ~ b.name) }}
+
+    <section class="item part" data-id="{{ b.id }}:palette" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+      <div class="body">
+        <h3>Palette</h3>
+        <div class="swatches">{% for c in b.palette %}<span style="background:{{ c }}">{{ c }}</span>{% endfor %}</div>
+        {% if b.pals %}<div class="pals">{% for pl in b.pals %}
+          <div class="pal" style="background:{{ pl.roles.bg or '#ffffff' }};color:{{ pl.roles.text or '#000000' }}">
+            <b>{{ pl.label }}</b>
+            <div class="chips">{% for r, c in pl.roles.items() %}<span title="{{ r }} {{ c }}" style="background:{{ c }}"></span>{% endfor %}</div>
+            {% if pl.ratios %}<small>{% for r, v in pl.ratios.items() %}{{ r }} {{ "%.1f"|format(v) }}:1{% if not loop.last %} · {% endif %}{% endfor %}</small>{% endif %}
+          </div>{% endfor %}
+        </div>{% endif %}
+      </div>
+      {{ controls(b.id ~ ":palette", "palette of " ~ b.name) }}
+    </section>
+
+    <section class="item part" data-id="{{ b.id }}:type" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+      <div class="body spec">
+        <h3>Type</h3>
+        <span class="aa" style="font-family:'{{ b.type.display }}',Georgia,serif">Aa Gg 1234</span>
+        <p style="font-family:'{{ b.type.text }}',system-ui,sans-serif">The quick brown fox jumps over the lazy dog.</p>
+        <small>{{ b.type.display }} / {{ b.type.text }}</small>
+        {% for f in b.fonts or [] %}<div class="pair">
+          <span class="fd" style="font-family:'{{ f.display }}',Georgia,serif">{{ f.display }}</span>
+          <span style="font-family:'{{ f.text }}',system-ui,sans-serif">{{ f.text }}{% if f.mono %} · <span style="font-family:'{{ f.mono }}',ui-monospace,monospace">{{ f.mono }}</span>{% endif %}</span>
+          {% if f.licence %}<small>{{ f.licence }}</small>{% endif %}
+        </div>{% endfor %}
+      </div>
+      {{ controls(b.id ~ ":type", "type of " ~ b.name) }}
+    </section>
+
+    <section class="item part" data-id="{{ b.id }}:texture" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+      <div class="body">
+        <h3>Texture</h3>
+        {% if b.texture %}{{ thumbs(b.texture, "tex") }}{% else %}<p class="none">No texture images in this direction.</p>{% endif %}
+      </div>
+      {{ controls(b.id ~ ":texture", "texture of " ~ b.name) }}
+    </section>
+
+    <section class="item part" data-id="{{ b.id }}:components" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+      <div class="body">
+        <h3>Components</h3>
+        {% if b.comps %}<ul class="comps">{% for c in b.comps %}
+          <li>{% if c.link %}<a href="{{ c.link }}" target="_blank" rel="noopener">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %} <small>{{ c.kind }}{% if c.licence %} · {{ c.licence }}{% endif %}</small>{% if c.note %}<br><span>{{ c.note }}</span>{% endif %}</li>
+        {% endfor %}</ul>{% else %}<p class="none">No components listed yet.</p>{% endif %}
+      </div>
+      {{ controls(b.id ~ ":components", "components of " ~ b.name) }}
+    </section>
+
+    <section class="item part" data-id="{{ b.id }}:imagery" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+      <div class="body">
+        <h3>Imagery</h3>
+        {% if b.imagery %}{{ thumbs(b.imagery) }}{% else %}<p class="none">No other images.</p>{% endif %}
+        <div class="motifs">{% for m in b.motifs %}<span>{{ m }}</span>{% endfor %}</div>
+      </div>
+      {{ controls(b.id ~ ":imagery", "imagery of " ~ b.name) }}
+    </section>
+  </section>
+{% endfor %}
+{% endblock %}
+{% block after_wall %}{% if boards|length > 1 %}
+<section class="mixer" aria-labelledby="mixer-h">
+  <h2 id="mixer-h">Make a mix</h2>
+  <p>Take each part from any direction and name the result. Every mix you add here becomes a new direction in the next round.</p>
+  <div class="pick">
+    {% for p in parts %}<label for="mix-{{ p }}">{{ p }}
+      <select id="mix-{{ p }}" data-part="{{ p }}">{% for b in boards %}<option value="{{ b.id }}">{{ b.id }}. {{ b.name }}</option>{% endfor %}</select>
+    </label>{% endfor %}
+  </div>
+  <div class="mixrow">
+    <label for="mix-name">Name<input id="mix-name" type="text" maxlength="60" placeholder="e.g. Warm grid" autocomplete="off"></label>
+    <label for="mix-note">Note (optional)<textarea id="mix-note" rows="1" maxlength="600" placeholder="What you hope the mix does"></textarea></label>
+  </div>
+  <button type="button" id="mix-add">Add mix</button>
+  <ul id="mixes" aria-label="Mixes to make"></ul>
+</section>
+{% endif %}{% endblock %}
+{% block script %}{% if boards|length > 1 %}
+  const NAMES = {{ names|tojson }};
+  const picks = [...document.querySelectorAll(".mixer select[data-part]")];
+  const mixName = document.getElementById("mix-name"), mixNote = document.getElementById("mix-note");
+  const mixAdd = document.getElementById("mix-add"), mixes = document.getElementById("mixes");
+  hooks.push(() => {
+    mixes.replaceChildren(...state.combos.map((c, i) => {
+      const li = document.createElement("li"), what = document.createElement("div");
+      const b = document.createElement("b"), s = document.createElement("small"), x = document.createElement("button");
+      what.className = "what"; b.textContent = c.name;
+      s.textContent = Object.entries(c.parts || {}).map(([p, d]) => `${p} from ${d}${NAMES[d] ? ` (${NAMES[d]})` : ""}`).join(" \u00b7 ");
+      what.append(b, s);
+      if (c.note) { const n = document.createElement("small"); n.textContent = c.note; what.append(n); }
+      x.type = "button"; x.textContent = "Remove"; x.disabled = !ref; x.setAttribute("aria-label", `Remove mix ${c.name}`);
+      x.addEventListener("click", () => { state.combos.splice(i, 1); paint(); save(); });
+      li.append(what, x); return li;
+    }));
+  });
+  if (!ref) [...picks, mixName, mixNote, mixAdd].forEach(c => { c.disabled = true; });
+  mixAdd.addEventListener("click", () => {
+    const name = mixName.value.trim();
+    if (!name) { status.textContent = "Name the mix first."; mixName.focus(); return; }
+    const parts = Object.fromEntries(picks.map(s => [s.dataset.part, s.value]));
+    if (new Set(Object.values(parts)).size < 2) { status.textContent = "Pick parts from at least two directions."; return; }
+    state.combos.push({ name, parts, note: mixNote.value.trim() });
+    mixName.value = ""; mixNote.value = "";
+    paint(); save();
+  });
+  mixName.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); mixAdd.click(); } });
+{% endif %}{% endblock %}

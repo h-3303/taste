@@ -11,7 +11,7 @@ from ..boards.run import Run, clean_text
 
 env = Environment(loader=PackageLoader("taste.pages"), autoescape=True)
 
-PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2"}
+PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2", "directions": "directions.html.j2"}
 NEGATIVE = ("dislike", "drop")
 LIBRARY_DOC = "library/current"
 
@@ -47,6 +47,8 @@ def render_round(run, stage: str, title: str, out_dir: Path, repeat_of: int | No
     run = run if isinstance(run, Run) else Run(run)
     if stage == "boards":
         return _render_boards(run, stage, title, Path(out_dir), repeat_of)
+    if stage == "directions":
+        return _render_directions(run, stage, title, Path(out_dir), repeat_of)
     from ..boards import survey
     items = survey.load(run.path)
     if not items:
@@ -79,6 +81,27 @@ def _render_boards(run: Run, stage: str, title: str, out_dir: Path, repeat_of: i
     r = rounds.start(run, stage, shown, repeat_of=repeat_of)
     return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), boards=boards, items=boards,
                   font_urls=font_urls, tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
+                  repeat_of=repeat_of, n=r.n)
+
+
+def _render_directions(run: Run, stage: str, title: str, out_dir: Path, repeat_of: int | None) -> Path:
+    """One column per direction: the whole direction (`<id>`) and its five parts (`<id>:<part>`), plus the mixer."""
+    from ..boards.canvas import build_boards, check_directions
+    from ..combine import PARTS
+    directions, pool = run.read("directions.json"), run.read("pool.json")
+    check_directions(directions)
+    out_dir = _fresh(out_dir)
+    boards, files, font_urls = build_boards(directions, pool, run.images, out_dir)
+    for b in boards:
+        tex = set((b.get("sections") or {}).get("texture", []))
+        b["texture"] = [it for it in b["items"] if it["id"] in tex]
+        b["imagery"] = [it for it in b["items"] if it["id"] not in tex]
+        b["name"] = clean_text(b["name"], 60, markdown=False)
+        b["rationale"] = clean_text(b.get("rationale", ""), 240, markdown=False)
+    shown = [x for b in boards for x in (b["id"], *(f"{b['id']}:{p}" for p in PARTS))]
+    r = rounds.start(run, stage, shown, repeat_of=repeat_of)
+    return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), boards=boards, items=boards,
+                  parts=PARTS, names={b["id"]: b["name"] for b in boards}, font_urls=font_urls, tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
                   repeat_of=repeat_of, n=r.n)
 
 

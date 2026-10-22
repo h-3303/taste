@@ -9,7 +9,7 @@ VERSION = "taste 0.1.0"
 _USAGE = """usage: taste <command> [args]
 
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
-rounds:       round render RUN STAGE --title T --out DIR [--repeat-of N] | round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN
+rounds:       round render RUN STAGE --title T --out DIR [--repeat-of N] | round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN | combine RUN --from-round N
 pages:       library-page --out DIR [--query Q] [--kind K] [--no-fetch]
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
@@ -224,6 +224,25 @@ def _cmd_library_page(rest: list[str]) -> int:
     return 0
 
 
+def _cmd_combine(rest: list[str]) -> int:
+    from . import combine, rounds
+    from .boards.run import Run
+    ap = argparse.ArgumentParser(prog="taste combine")
+    ap.add_argument("run"); ap.add_argument("--from-round", type=int, required=True)
+    a = ap.parse_args(rest)
+    try:
+        run = Run(a.run)
+        new = combine.apply_combos(run, rounds.load(run, "directions", a.from_round))
+    except (ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    for m in new:
+        print(f"{m['id']}\t{m['name']}")
+    if not new:
+        print(f"directions round {a.from_round} has no mixes")
+    return 0
+
+
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
@@ -235,7 +254,7 @@ def _cmd_gaps(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"round": _cmd_round, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+_COMMANDS = {"round": _cmd_round, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 

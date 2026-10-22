@@ -174,3 +174,65 @@ def test_boards_image_note_field_gets_its_own_row(tmp_path):
     html = render_round(_boards_run(tmp_path), "boards", "Shop", tmp_path / "bo").read_text(encoding="utf-8")
     assert ".pic .extra{padding:4px 6px 6px;flex-wrap:wrap}" in html
     assert ".pic .item-note{flex:1 1 100%;min-width:0}" in html
+
+
+def _directions_run(tmp_path):
+    run = _boards_run(tmp_path)
+    dirs = run.read("directions.json")
+    for d in dirs["directions"]:
+        d["sections"] = {"texture": ["i007", "i008"]}
+        d["components"] = [{"name": f"Comp {d['id']}", "kind": "ui", "licence": "MIT"}]
+    run.write("directions.json", dirs)
+    return run
+
+
+PART_NAMES = ("palette", "type", "texture", "components", "imagery")
+
+
+def test_directions_page_has_parts_whole_items_and_combine(tmp_path):
+    run = _directions_run(tmp_path)
+    out = tmp_path / "di"
+    html = render_round(run, "directions", "Shop", out).read_text(encoding="utf-8")
+    for k in ("1", "2", "3"):
+        assert f'data-id="{k}"' in html
+        for p in PART_NAMES:
+            assert f'data-id="{k}:{p}"' in html
+    assert len(re.findall(r'<textarea[^>]*class="item-note"', html)) == 18
+    assert 'data-votes="keep drop"' in html and "rounds/directions-1" in html
+    for p in PART_NAMES:
+        assert f'id="mix-{p}"' in html
+    assert 'id="mix-name"' in html and 'id="mix-note"' in html and 'id="mix-add"' in html and 'id="mixes"' in html
+    assert "Comp 2" in html and "Archivo Black" in html
+    rec = rounds.load(run, "directions", 1)
+    assert rec.shown[:6] == ["1", "1:palette", "1:type", "1:texture", "1:components", "1:imagery"]
+    assert len(rec.shown) == 18
+    files = json.loads((out / "files.json").read_text())
+    assert files and all((out / k).exists() for k in files)
+
+
+def test_directions_page_shows_texture_and_imagery_split(tmp_path):
+    html = render_round(_directions_run(tmp_path), "directions", "Shop", tmp_path / "di").read_text(encoding="utf-8")
+    col = html.split('data-id="1:texture"')[1].split('data-id="1:components"')[0]
+    assert col.count("<img") == 2
+    col = html.split('data-id="1:imagery"')[1].split('data-id="2"')[0]
+    assert col.count("<img") == 6
+
+
+def test_directions_part_votes_and_combos_reach_steering(tmp_path):
+    run = _directions_run(tmp_path)
+    render_round(run, "directions", "Shop", tmp_path / "di")
+    rounds.ingest(run, "directions", 1, {"at": "2999-01-01T00:00:00+00:00",
+                                         "items": {"2:type": {"vote": "drop", "note": "too loud"}, "1": {"vote": "keep"}},
+                                         "combos": [{"name": "Mix", "parts": {"palette": "1", "type": "3"}, "note": ""}]})
+    s = rounds.steering(run)
+    assert "2:type" in s["dropped"] and "1" in s["kept"] and s["combos"][0]["parts"]["type"] == "3"
+
+
+def test_directions_page_no_person_specific_text(tmp_path):
+    html = render_round(_directions_run(tmp_path), "directions", "Shop", tmp_path / "di").read_text(encoding="utf-8")
+    assert not re.search(r"\bh\b(?!=)", re.sub(r"<[^>]+>", " ", html.split("<script>")[0]))
+
+
+def test_cli_round_render_directions(tmp_path):
+    run = _directions_run(tmp_path)
+    assert main(["round", "render", str(run.path), "directions", "--title", "Shop", "--out", str(tmp_path / "o")]) == 0

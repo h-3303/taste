@@ -6,6 +6,8 @@ HEX = re.compile(r"#[0-9a-fA-F]{6}")
 FONT = re.compile(r"[A-Za-z0-9 ]+")   # values go into CSS font-family and a Google Fonts URL
 AXES = ("palette", "density", "type", "imagery")
 MIN_IMAGES, MAX_IMAGES = 8, 60
+PARTS = ("palette", "type", "texture", "components", "imagery")   # what a mix ("m<k>") takes from its sources
+MIX_ID = re.compile(r"m([1-9]\d*)")
 
 
 def style_errors(d: dict) -> list[str]:
@@ -47,6 +49,43 @@ def _extras_errors(d: dict, tag: str) -> list[str]:
     return errs
 
 
+def _roots(ds: list[dict]) -> dict:
+    """For each mix, the plain directions it descends from (its images were gathered for those styles)."""
+    by_id, out = {d.get("id"): d for d in ds}, {}
+
+    def walk(i, seen):
+        d = by_id.get(i)
+        if d is None or i in seen or not isinstance(d.get("from"), dict):
+            return {i}
+        return set().union(*(walk(v, seen | {i}) for v in d["from"].values())) if d["from"] else {i}
+    for d in ds:
+        if isinstance(d.get("from"), dict):
+            out[d.get("id")] = walk(d.get("id"), set())
+    return out
+
+
+def _mix_errors(ds: list[dict]) -> list[str]:
+    errs, earlier = [], {}
+    for d in ds:
+        i, tag = d.get("id"), f"direction {d.get('id')}"
+        is_mix = isinstance(i, str) and bool(MIX_ID.fullmatch(i))
+        frm = d.get("from")
+        if not is_mix:
+            if "from" in d:
+                errs.append(f"{tag}: only a mix (m1, m2, ...) has a from field")
+        elif not isinstance(frm, dict) or set(frm) != set(PARTS):
+            errs.append(f"{tag}: from must name a source direction for each of {', '.join(PARTS)}")
+        elif any(str(v) not in earlier for v in frm.values()):
+            errs.append(f"{tag}: from names a direction that is not listed before it")
+        else:
+            pool = set().union(*(earlier[str(v)].get("image_ids", []) for v in frm.values()))
+            stray = [x for x in d.get("image_ids", []) if x not in pool]
+            if stray:
+                errs.append(f"{tag}: images {', '.join(stray[:5])} are not in its source directions")
+        earlier[str(i)] = d
+    return errs
+
+
 def validate(directions: dict, pool: dict) -> list[str]:
     errs = []
     ds = directions.get("directions", [])
@@ -54,11 +93,16 @@ def validate(directions: dict, pool: dict) -> list[str]:
     style_of = {r["id"]: r.get("style") for r in pool["images"]}
     if not ds:
         errs.append("need at least 1 direction")
-    if [d.get("id") for d in ds] != [str(n) for n in range(1, len(ds) + 1)]:
-        errs.append(f'ids must be "1" to "{len(ds)}" in order')
+    mixes = [d for d in ds if isinstance(d.get("id"), str) and MIX_ID.fullmatch(d["id"])]
+    n, k = len(ds) - len(mixes), len(mixes)
+    if [d.get("id") for d in ds] != [str(i) for i in range(1, n + 1)] + [f"m{i}" for i in range(1, k + 1)]:
+        errs.append(f'ids must be "1" to "{n}" in order' + (f', then "m1" to "m{k}"' if k else ""))
+    errs += _mix_errors(ds)
+    roots = _roots(ds)
     usage = Counter()
     for d in ds:
         tag = f"direction {d.get('id')}"
+        mix = d in mixes
         if not str(d.get("name", "")).strip():
             errs.append(f"{tag}: name is empty")
         r = str(d.get("rationale", "")).strip()
@@ -70,10 +114,13 @@ def validate(directions: dict, pool: dict) -> list[str]:
         for i in imgs:
             if i not in known:
                 errs.append(f"{tag}: unknown image {i}")
-        usage.update(set(imgs))
-        own = sum(style_of.get(i) == d.get("id") for i in set(imgs))
+        if not mix:
+            usage.update(set(imgs))       # a mix reuses its sources' images by design
+        styles = roots.get(d.get("id"), {d.get("id")})
+        own = sum(style_of.get(i) in styles for i in set(imgs))
         if imgs and own * 2 <= len(set(imgs)):
-            errs.append(f"{tag}: only {own} of {len(set(imgs))} images were gathered for style {d.get('id')} (need more than half)")
+            errs.append(f"{tag}: only {own} of {len(set(imgs))} images were gathered for style "
+                        f"{', '.join(sorted(map(str, styles)))} (need more than half)")
         errs += style_errors(d)
         if not 3 <= len(d.get("motifs", [])) <= 5:
             errs.append(f"{tag}: needs 3-5 motifs")
@@ -82,7 +129,7 @@ def validate(directions: dict, pool: dict) -> list[str]:
     for img, n in sorted(usage.items()):
         if n > 2:
             errs.append(f"image {img} used in {n} directions (max 2)")
-    for a, b in combinations(ds, 2):
+    for a, b in combinations([d for d in ds if d not in mixes], 2):   # a mix is meant to sit close to its sources
         xa, xb = a.get("axes", {}), b.get("axes", {})
         diff = sum(str(xa.get(k, "")).lower() != str(xb.get(k, "")).lower() for k in AXES)
         if diff < 2:

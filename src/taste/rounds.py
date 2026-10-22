@@ -198,7 +198,7 @@ def gaps(run: Run) -> list[str]:
         for img in run.read("pool.json").get("images", []):
             if img.get("style") is not None:
                 counts[str(img["style"])] = counts.get(str(img["style"]), 0) + 1
-        known = [str(d["id"]) for d in run.read("directions.json").get("directions", [])] \
+        known = [str(d["id"]) for d in run.read("directions.json").get("directions", []) if "from" not in d] \
             if run.has("directions.json") else sorted(counts)
         out += [f"Direction {d} is thin ({counts.get(d, 0)} images)" for d in known if counts.get(d, 0) < THIN]
     return out
