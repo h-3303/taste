@@ -123,3 +123,27 @@ def test_cli_import(tmp_path, monkeypatch, src, capsys):
     assert "3 library" in out and "1 run" in out and "import-proposals.json" in out
     assert json.loads((tmp_path / "data" / "import-proposals.json").read_text())[0]["text"] == "grain"
     assert cli.main(["import"]) == 0
+
+
+def test_import_library_opens_the_source_read_only(src, dest):
+    conn, thumbs = dest
+    lib = src / "library.db"
+    raw = sqlite3.connect(lib)
+    raw.execute("DROP TABLE cache")          # an older dlib without the cache table: import must not add it
+    raw.commit(); raw.close()
+    before = lib.read_bytes()
+    assert importer.import_library(src, conn, thumbs) == 3
+    assert lib.read_bytes() == before
+    names = {r[0] for r in sqlite3.connect(lib).execute("select name from sqlite_master")}
+    assert "cache" not in names
+
+
+def test_import_library_requires_library_db(tmp_path, monkeypatch, capsys):
+    empty = tmp_path / "nolib"; empty.mkdir()
+    with pytest.raises(FileNotFoundError, match="no library.db in"):
+        importer.import_library(empty, db.connect(tmp_path / "dest.db"), tmp_path / "t")
+    assert not (empty / "library.db").exists()
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
+    assert cli.main(["import", "--dlib", str(empty)]) == 1
+    assert f"no library.db in {empty}" in capsys.readouterr().err
+    assert not (empty / "library.db").exists()

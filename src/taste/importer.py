@@ -1,6 +1,7 @@
 """Bring an existing dlib library, moodboards runs and project direction files into taste."""
 import json
 import shutil
+import sqlite3
 from pathlib import Path
 
 from . import profile
@@ -21,8 +22,12 @@ def import_library(src_dir: Path, conn, thumbs_dir: Path) -> int:
     An existing key keeps its row and id (only a missing thumb is filled and `meta.private` added).
     Ids that collide with a different key are re-minted. Returns rows processed."""
     src_dir, thumbs_dir = Path(src_dir), Path(thumbs_dir)
+    lib = src_dir / "library.db"
+    if not lib.is_file():
+        raise FileNotFoundError(f"no library.db in {src_dir}")
     thumbs_dir.mkdir(parents=True, exist_ok=True)
-    sconn = db.connect(src_dir / "library.db")
+    sconn = sqlite3.connect(f"{lib.resolve().as_uri()}?mode=ro", uri=True)   # the old library is only read
+    sconn.row_factory = sqlite3.Row
     try:
         for s in sconn.execute("SELECT * FROM sources"):
             d = dict(s)
