@@ -9,7 +9,8 @@ VERSION = "taste 0.1.0"
 _USAGE = """usage: taste <command> [args]
 
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
-rounds:       round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN
+rounds:       round render RUN STAGE --title T --out DIR [--repeat-of N] | round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN
+pages:       library-page --out DIR [--query Q] [--kind K] [--no-fetch]
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
 sync:        sync [source ...]            (API/repo sources only)
@@ -167,8 +168,11 @@ def _cmd_round(rest: list[str]) -> int:
     import json
     from . import rounds
     from .boards.run import Run
-    usage = "usage: taste round ingest <run> <stage> <n> <doc.json> | steer <run> | final <run> <comments.json>"
+    usage = ("usage: taste round render <run> <stage> --title T --out DIR [--repeat-of N] | "
+             "ingest <run> <stage> <n> <doc.json> | steer <run> | final <run> <comments.json>")
     try:
+        if rest[:1] == ["render"]:
+            return _round_render(rest[1:])
         if rest[:1] == ["ingest"] and len(rest) == 5:
             r = rounds.ingest(Run(rest[1]), rest[2], int(rest[3]), json.loads(Path(rest[4]).read_text(encoding="utf-8")))
             print(f"{r.stage} round {r.n}: {len(r.items)} item(s) recorded")
@@ -186,6 +190,40 @@ def _cmd_round(rest: list[str]) -> int:
     return 0
 
 
+def _round_render(rest: list[str]) -> int:
+    from . import pages
+    ap = argparse.ArgumentParser(prog="taste round render")
+    ap.add_argument("run"); ap.add_argument("stage"); ap.add_argument("--title", required=True)
+    ap.add_argument("--out", required=True); ap.add_argument("--repeat-of", type=int)
+    a = ap.parse_args(rest)
+    if a.stage not in pages.PAGES:
+        print(f"error: stage {a.stage} has no page yet", file=sys.stderr)
+        return 1
+    page = pages.render_round(a.run, a.stage, a.title, Path(a.out), repeat_of=a.repeat_of)
+    print(page)
+    return 0
+
+
+def _cmd_library_page(rest: list[str]) -> int:
+    from . import pages
+    from .library import db, paths
+    ap = argparse.ArgumentParser(prog="taste library-page")
+    ap.add_argument("--out", required=True); ap.add_argument("--query", default=""); ap.add_argument("--kind")
+    ap.add_argument("--no-fetch", action="store_true", help="use only thumbnails already on disk")
+    a = ap.parse_args(rest)
+    fetch = None
+    if not a.no_fetch:
+        from .library.fetch import Fetcher
+        fetch = Fetcher()
+    paths.ensure_dirs()
+    conn = db.connect(paths.db_path())
+    try:
+        print(pages.render_library(conn, Path(a.out), query=a.query, kind=a.kind, fetch=fetch))
+    finally:
+        conn.close()
+    return 0
+
+
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
@@ -197,7 +235,7 @@ def _cmd_gaps(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"round": _cmd_round, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+_COMMANDS = {"round": _cmd_round, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 
