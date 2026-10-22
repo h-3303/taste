@@ -4,6 +4,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from taste.render import RendererMissing
+
 from . import archive
 from .brief import write_brief
 from .canvas import render_canvas
@@ -57,11 +59,7 @@ def cmd_gather(a):
     sites = [s for st in styles for s in st.get("sites", [])]
     if sites and not a.no_sites:
         from .capture import capture_sites   # imports Playwright only when needed
-        try:
-            c, f = capture_sites(sites, run.raw)
-        except RuntimeError as e:
-            print(f"error: {e}")
-            return 1
+        c, f = capture_sites(sites, run.raw)   # RendererMissing is mapped to exit 2 in main
         for x in c:
             x.style = site_style.get(x.source_url)
         cands += c; failures += f
@@ -277,6 +275,9 @@ def main(argv=None) -> int:
     except FileNotFoundError as e:
         print(f"error: {e}")
         return 1
+    except RendererMissing as e:
+        print(f"error: {e}")
+        return 2
 
 
 if __name__ == "__main__":

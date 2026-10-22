@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 from . import cache as cache_mod, curated, db, paths, pluck as pluck_mod, search as search_mod, sheet as sheet_mod, sync as sync_mod, timer
+from taste.render import RendererMissing
+
 from .fetch import FetchError, Fetcher
 from .sources import base
 import taste.library.sources  # noqa: F401  (registers adapters)
@@ -28,10 +30,7 @@ def _conn():
 
 
 def _fetcher():
-    if not _obscura():
-        raise MissingTool("obscura not found: download the x86_64-linux-stealth release from "
-                          "https://github.com/h4ckf0r0day/obscura/releases into ~/.local/bin or enable the obscura connector in config.json")
-    return Fetcher()
+    return Fetcher()   # the renderer (Playwright, or Obscura when connected) is resolved on first render
 
 
 class _Parser(argparse.ArgumentParser):
@@ -239,6 +238,6 @@ def main(argv=None) -> int:
     a = build_parser().parse_args(argv)
     try:
         return a.fn(a)
-    except MissingTool as e:
+    except (MissingTool, RendererMissing) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2

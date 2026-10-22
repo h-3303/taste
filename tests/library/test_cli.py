@@ -57,12 +57,13 @@ def test_show_missing_item(env, capsys):
     assert cli.main(["show", "zzzzzz"]) == 1
 
 
-def test_missing_obscura_exits_2(monkeypatch, tmp_path, capsys):
-    monkeypatch.setenv("TASTE_DATA", str(tmp_path))
-    monkeypatch.setattr("shutil.which", lambda *_: None)
-    monkeypatch.setattr(base, "REGISTRY", {"demo": Demo()})
+def test_missing_renderer_exits_2(monkeypatch, tmp_path, capsys):
+    from taste.render import RendererMissing
+    def boom():
+        raise RendererMissing()
+    monkeypatch.setattr(cli, "_conn", boom)
     assert cli.main(["sync"]) == 2
-    assert "obscura not found" in capsys.readouterr().err
+    assert "Chromium is missing" in capsys.readouterr().err
 
 
 def test_unusable_data_dir_exits_2(monkeypatch, tmp_path, capsys):

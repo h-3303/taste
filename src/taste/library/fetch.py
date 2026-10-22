@@ -1,6 +1,5 @@
 import json as _json
 import re
-import subprocess
 import threading
 import time
 from pathlib import Path
@@ -8,7 +7,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from .paths import BANNED_HOSTS, obscura_bin
+from .. import render as _render
+from .paths import BANNED_HOSTS
 
 UA = "dlib/0.1 (+h's personal design library; polite, obeys robots.txt)"
 CHALLENGE_TITLES = ("Just a moment", "Attention Required! | Cloudflare", "Access Denied", "Vercel Security Checkpoint")
@@ -67,11 +67,9 @@ class RateLimiter:
 
 
 class Fetcher:
-    def __init__(self, obscura: str | None = None, limiter: RateLimiter | None = None, runner=subprocess.run,
-                 client: httpx.Client | None = None):
-        self.obscura = obscura if obscura is not None else obscura_bin()
+    def __init__(self, renderer=None, limiter: RateLimiter | None = None, client: httpx.Client | None = None):
+        self._renderer = renderer   # resolved on first render/screenshot, so plain HTTP never touches Playwright or config
         self.limiter = limiter or RateLimiter()
-        self.runner = runner
         self.client = client or httpx.Client(timeout=30.0, follow_redirects=True, headers={"User-Agent": UA})
         self.client.event_hooks["request"] = [*self.client.event_hooks.get("request", []), self._on_request]
         self._origin = threading.local()
@@ -145,36 +143,29 @@ class Fetcher:
         tmp.replace(dest)
         return dest
 
-    def _obscura(self, args: list[str], timeout: int) -> subprocess.CompletedProcess:
-        if not self.obscura:
-            raise FetchError("obscura not found: install it to ~/.local/bin or enable the obscura connector in config.json")
-        try:
-            return self.runner([self.obscura, *args], capture_output=True, text=True, timeout=timeout + 30)
-        except subprocess.TimeoutExpired as e:
-            raise FetchError(f"obscura timed out: {e}") from e
+    @property
+    def renderer(self):
+        if self._renderer is None:
+            self._renderer = _render.get_renderer()
+        return self._renderer
 
-    def render(self, url: str, wait: int = 6, stealth: bool = False, obey_robots: bool = True, timeout: int = 40) -> str:
+    def render(self, url: str, wait: int = 6, stealth: bool = False, obey_robots: bool = True) -> str:
         self._check(url)
-        flags = (["--stealth"] if stealth else []) + (["--obey-robots"] if obey_robots else [])
-        p = self._obscura([*flags, "fetch", url, "--timeout", str(timeout), "--wait", str(wait), "--dump", "html",
-                           "--quiet"], timeout)
-        if p.returncode != 0:
-            raise FetchError(f"obscura fetch {url}: {p.stderr.strip()[:300]}")
-        html = p.stdout
+        kw = {} if obey_robots else {"obey_robots": False}   # only Obscura has a robots switch
+        try:
+            html = self.renderer.html(url, wait=wait, stealth=stealth, **kw)
+        except _render.RenderError as e:
+            raise FetchError(str(e)) from e
         if is_challenge(html):
             raise Blocked(f"{url}: bot challenge")
         return html
 
-    def screenshot(self, url: str, dest: Path, wait: int = 6, stealth: bool = False, timeout: int = 40) -> Path:
+    def screenshot(self, url: str, dest: Path, wait: int = 6) -> Path:
         self._check(url)
-        dest = Path(dest)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        flags = (["--stealth"] if stealth else []) + ["--obey-robots"]
-        p = self._obscura([*flags, "fetch", url, "--timeout", str(timeout), "--wait", str(wait), "-s", str(dest),
-                           "--quiet"], timeout)
-        if p.returncode != 0 or not dest.exists():
-            raise FetchError(f"obscura screenshot {url}: {p.stderr.strip()[:300]}")
-        return dest
+        try:
+            return self.renderer.screenshot(url, Path(dest), wait=wait)
+        except _render.RenderError as e:
+            raise FetchError(str(e)) from e
 
     def close(self) -> None:
         self.client.close()
@@ -203,11 +194,11 @@ class FakeFetcher:
         self.calls.append(("get_text", url))
         return self._find(self.text, url, "text")
 
-    def render(self, url, wait=6, stealth=False, obey_robots=True, timeout=40) -> str:
+    def render(self, url, wait=6, stealth=False, obey_robots=True) -> str:
         self.calls.append(("render", url))
         return self._find(self.pages, url, "page")
 
-    def screenshot(self, url, dest, wait=6, stealth=False, timeout=40) -> Path:
+    def screenshot(self, url, dest, wait=6) -> Path:
         self.calls.append(("screenshot", url))
         data = self._find(self.files, url, "screenshot")
         Path(dest).parent.mkdir(parents=True, exist_ok=True)

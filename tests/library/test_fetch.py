@@ -55,46 +55,8 @@ def test_banned_url_refused(tmp_path):
     f.close()
 
 
-def test_render_builds_obscura_argv_and_returns_html():
-    seen = {}
-    def runner(argv, **kw):
-        seen["argv"] = argv
-        return subprocess.CompletedProcess(argv, 0, stdout="<html><body>hi</body></html>", stderr="")
-    f = fetch.Fetcher(obscura="/bin/obscura", runner=runner, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    html = f.render("https://www.cosmos.so/search/elements/x", wait=8)
-    assert html.startswith("<html>")
-    a = seen["argv"]
-    assert a[:1] == ["/bin/obscura"] and "--obey-robots" in a and "--stealth" not in a
-    assert a[a.index("fetch") + 1] == "https://www.cosmos.so/search/elements/x"
-    assert a[a.index("--wait") + 1] == "8" and a[a.index("--dump") + 1] == "html" and "--quiet" in a
-    f.render("https://codepen.io/x", stealth=True, obey_robots=False)
-    assert "--stealth" in seen["argv"] and "--obey-robots" not in seen["argv"]
-    f.close()
 
 
-def test_render_detects_challenge():
-    def runner(argv, **kw):
-        return subprocess.CompletedProcess(argv, 0, stdout="<html><title>Just a moment...</title></html>", stderr="")
-    f = fetch.Fetcher(obscura="/bin/obscura", runner=runner, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    with pytest.raises(fetch.Blocked):
-        f.render("https://codepen.io/search")
-    f.close()
-
-
-def test_render_without_obscura_raises():
-    f = fetch.Fetcher(obscura=None, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    with pytest.raises(fetch.FetchError, match="obscura"):
-        f.render("https://x.test")
-    f.close()
-
-
-def test_render_nonzero_exit_raises():
-    def runner(argv, **kw):
-        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="boom")
-    f = fetch.Fetcher(obscura="/bin/obscura", runner=runner, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    with pytest.raises(fetch.FetchError, match="boom"):
-        f.render("https://x.test")
-    f.close()
 
 
 def test_fake_fetcher_records_calls(tmp_path):
@@ -167,13 +129,6 @@ def test_is_challenge_uses_title_not_body_text():
     assert not fetch.is_challenge("<html><body>cf-chl- is just a class</body></html>")
 
 
-def test_render_does_not_block_page_mentioning_access_denied():
-    def runner(argv, **kw):
-        return subprocess.CompletedProcess(argv, 0, stdout="<html><title>Nice</title><body>Access Denied</body></html>", stderr="")
-    f = fetch.Fetcher(obscura="/bin/obscura", runner=runner, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    assert "Access Denied" in f.render("https://codepen.io/x")
-    f.close()
-
 
 def test_rate_limiter_folds_www():
     waits = []
@@ -181,29 +136,6 @@ def test_rate_limiter_folds_www():
     rl.wait("https://www.a.com/1"); rl.wait("https://a.com/2")
     assert waits == [1.0]
 
-
-def test_screenshot_argv_and_failures(tmp_path):
-    seen = {}
-    def ok(argv, **kw):
-        seen["argv"] = argv
-        Path(argv[argv.index("-s") + 1]).write_bytes(b"png")
-        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
-    f = fetch.Fetcher(obscura="/bin/obscura", runner=ok, limiter=fetch.RateLimiter(sleep=lambda s: None))
-    dest = tmp_path / "sub" / "s.png"
-    assert f.screenshot("https://x.test", dest) == dest and dest.read_bytes() == b"png"
-    assert "--obey-robots" in seen["argv"] and "--stealth" not in seen["argv"]
-    f.screenshot("https://x.test", dest, stealth=True)
-    assert "--stealth" in seen["argv"]
-    bad = fetch.Fetcher(obscura="/bin/obscura", limiter=fetch.RateLimiter(sleep=lambda s: None),
-                        runner=lambda argv, **kw: subprocess.CompletedProcess(argv, 1, stdout="", stderr="boom"))
-    with pytest.raises(fetch.FetchError):
-        bad.screenshot("https://x.test", tmp_path / "n.png")
-    nofile = fetch.Fetcher(obscura="/bin/obscura", limiter=fetch.RateLimiter(sleep=lambda s: None),
-                           runner=lambda argv, **kw: subprocess.CompletedProcess(argv, 0, stdout="", stderr=""))
-    with pytest.raises(fetch.FetchError):
-        nofile.screenshot("https://x.test", tmp_path / "m.png")
-    for x in (f, bad, nofile):
-        x.close()
 
 
 def test_vercel_checkpoint_is_a_challenge():

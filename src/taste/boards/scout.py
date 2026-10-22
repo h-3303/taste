@@ -32,18 +32,8 @@ def parse_designspiration(html: str) -> list[str]:
 
 def render_page(url: str, settle_ms: int = 6000) -> str:
     """Rendered HTML of a search page (both galleries build their grids in script)."""
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch()
-        try:
-            page = browser.new_page(viewport={"width": 1440, "height": 900})
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(settle_ms)
-            page.mouse.wheel(0, 2500)
-            page.wait_for_timeout(min(settle_ms, 2500))
-            return page.content()
-        finally:
-            browser.close()
+    from taste.render import get_renderer
+    return get_renderer().html(url, wait=settle_ms // 1000)
 
 
 def _download(url: str, dest: Path) -> Path:

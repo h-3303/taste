@@ -4,7 +4,8 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as PwError
 from playwright.sync_api import TimeoutError as PwTimeout
-from playwright.sync_api import sync_playwright
+
+from taste.render import PlaywrightRenderer
 
 from .models import Candidate
 from .run import slugify
@@ -52,11 +53,7 @@ def capture_sites(sites: list[dict], dest: Path, idle_timeout_ms: int = 8000,
             visit.append(s)
     if not visit:
         return cands, failures
-    with sync_playwright() as pw:
-        try:
-            browser = pw.chromium.launch()
-        except PwError as e:
-            raise RuntimeError("Playwright Chromium missing: run `uv run playwright install chromium`") from e
+    with PlaywrightRenderer().browser() as browser:
         for s in visit:
             ctx = browser.new_context(viewport={"width": 1440, "height": 900})
             page = ctx.new_page()
@@ -82,5 +79,4 @@ def capture_sites(sites: list[dict], dest: Path, idle_timeout_ms: int = 8000,
                 failures.append(f"site {s['note']} ({s['url']}): {str(e).splitlines()[0]}")
             finally:
                 ctx.close()
-        browser.close()
     return cands, failures

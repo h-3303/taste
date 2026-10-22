@@ -88,10 +88,11 @@ def test_gather_reports_missing_chromium(tmp_path, monkeypatch, capsys):
     (run / "refs.json").write_text(json.dumps(styles_refs(sites=[{"url": "https://a.example", "note": "A"}])))
 
     def boom(sites, dest):
-        raise RuntimeError("Chromium missing")
+        from taste.render import RendererMissing
+        raise RendererMissing()
     monkeypatch.setattr("taste.boards.capture.capture_sites", boom)
-    assert main(["gather", str(run)]) == 1
-    assert "Chromium missing" in capsys.readouterr().out
+    assert main(["gather", str(run)]) == 2
+    assert "Chromium is missing" in capsys.readouterr().out
 
 
 def test_validate_reports_errors(tmp_path, capsys):

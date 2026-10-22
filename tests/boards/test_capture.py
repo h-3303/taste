@@ -35,9 +35,9 @@ def site(tmp_path, base, name, extra=""):
 
 @pytest.fixture
 def no_browser(monkeypatch):
-    def boom():
+    def boom(self):
         raise AssertionError("browser launched")
-    monkeypatch.setattr("taste.boards.capture.sync_playwright", boom)
+    monkeypatch.setattr("taste.render.PlaywrightRenderer.browser", boom)
 
 
 @pytest.mark.parametrize("url,reason", [
