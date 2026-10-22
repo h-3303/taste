@@ -1,0 +1,108 @@
+<title>{{ title }} taste survey</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{--bg:#f3f1ec;--ink:#1b1a18;--muted:#6a655d;--card:#fcfbf8;--line:#dcd7cd;--like:#15803d;--dislike:#b91c1c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141312;--ink:#ece8e1;--muted:#a19a8f;--card:#1f1d1b;--line:#38342f;--like:#4ade80;--dislike:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141312;--ink:#ece8e1;--muted:#a19a8f;--card:#1f1d1b;--line:#38342f;--like:#4ade80;--dislike:#f87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,sans-serif;padding-block:24px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{max-width:1600px;margin:0 auto 18px;display:flex;flex-direction:column;gap:10px}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+h1{margin:0;text-wrap:balance;font-size:clamp(22px,4vw,34px)}
+header p{margin:0;color:var(--muted)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:4px 12px;cursor:pointer;font:inherit;font-size:13px}
+.bar button[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+#count{font-weight:600}
+#status{color:var(--muted);font-size:13px}
+.grid{max-width:1600px;margin:0 auto;columns:4 280px;column-gap:14px}
+.item{break-inside:avoid;margin:0 0 14px;background:var(--card);border:2px solid var(--line);border-radius:6px;overflow:hidden}
+.item[data-state="like"]{border-color:var(--like)}
+.item[data-state="dislike"]{border-color:var(--dislike);opacity:.55}
+.item img{width:100%;display:block;background:var(--line)}
+.meta{padding:8px 10px;display:flex;flex-direction:column;gap:3px}
+.meta b{font-size:14px}
+.meta span{color:var(--muted);font-size:12.5px}
+.meta a{color:inherit}
+.votes{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
+.votes button{border:0;background:none;color:var(--muted);padding:9px;font:inherit;font-size:13px;cursor:pointer}
+.votes button+button{border-left:1px solid var(--line)}
+.votes button[data-vote="like"][aria-pressed="true"]{color:var(--like);font-weight:700}
+.votes button[data-vote="dislike"][aria-pressed="true"]{color:var(--dislike);font-weight:700}
+.note{max-width:1600px;margin:20px auto 0;display:flex;gap:8px;flex-wrap:wrap}
+.note textarea{flex:1;min-width:240px;min-height:64px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit}
+.note button{padding:8px 16px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font-weight:600;cursor:pointer}
+</style>
+<header>
+  <h1>{{ title }}: taste survey</h1>
+  <p>Mark what you like and what you don't. Unmarked is fine. The design languages get built from your likes.</p>
+  <div class="bar" role="group" aria-label="Filter">
+    <button type="button" data-filter="" aria-pressed="true">All</button>
+    {% for t in tags %}<button type="button" data-filter="{{ t }}" aria-pressed="false">{{ t }}</button>{% endfor %}
+    <button type="button" data-filter="@open" aria-pressed="false">Unmarked</button>
+  </div>
+  <div class="bar"><span id="count" role="status"></span><span id="status"></span></div>
+</header>
+<main class="grid">
+{% for it in items %}
+  <figure class="item" id="{{ it.id }}" data-tag="{{ it.tag }}" data-state="">
+    <img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">
+    <figcaption class="meta">
+      <b>{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}</b>
+      <span>{{ it.why }}{% if it.tag %} · {{ it.tag }}{% endif %} · {{ it.id }}</span>
+    </figcaption>
+    <div class="votes">
+      <button type="button" data-vote="like" aria-pressed="false" aria-label="Like {{ it.title }}">Like</button>
+      <button type="button" data-vote="dislike" aria-pressed="false" aria-label="Dislike {{ it.title }}">Dislike</button>
+    </div>
+  </figure>
+{% endfor %}
+</main>
+<div class="note">
+  <textarea id="note" placeholder="Anything else? (e.g. 'more like s014 but darker')" aria-label="Survey note"></textarea>
+  <button type="button" id="save-note">Save note</button>
+</div>
+<script>
+(async () => {
+  const items = [...document.querySelectorAll(".item")];
+  const count = document.getElementById("count"), status = document.getElementById("status");
+  let votes = {}, note = "", filter = "";
+  const paint = () => {
+    items.forEach(el => {
+      const v = votes[el.id] || "";
+      el.dataset.state = v;
+      el.querySelectorAll("[data-vote]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.vote === v)));
+      el.hidden = filter === "@open" ? !!v : (filter && el.dataset.tag !== filter);
+    });
+    const vs = Object.values(votes);
+    const like = vs.filter(v => v === "like").length, dislike = vs.filter(v => v === "dislike").length;
+    count.textContent = `${like} liked · ${dislike} disliked · ${items.length - like - dislike} unmarked`;
+  };
+  document.querySelectorAll("[data-filter]").forEach(b => b.addEventListener("click", () => {
+    filter = b.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    paint();
+  }));
+  let db = null;
+  try { db = window.claude ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  const ref = db && db.doc("survey/current");
+  if (ref) {
+    try { const s = await ref.get(); if (s.exists) { const d = s.data(); votes = d.votes || {}; note = d.note || ""; } } catch (e) {}
+  } else {
+    status.textContent = "Saving isn't available here: list the ids you like in Claude Code.";
+  }
+  document.getElementById("note").value = note;
+  const save = async () => {
+    if (!ref) return;
+    try { await ref.set({ votes, note, at: new Date().toISOString() }); status.textContent = "Saved."; }
+    catch (e) { status.textContent = "Couldn't save: list the ids you like in Claude Code."; }
+  };
+  items.forEach(el => el.querySelectorAll("[data-vote]").forEach(b => b.addEventListener("click", () => {
+    const v = b.dataset.vote;
+    if (votes[el.id] === v) delete votes[el.id]; else votes[el.id] = v;
+    paint(); save();
+  })));
+  document.getElementById("save-note").addEventListener("click", () => { note = document.getElementById("note").value.trim(); save(); });
+  paint();
+})();
+</script>

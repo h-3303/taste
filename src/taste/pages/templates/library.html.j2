@@ -1,0 +1,5 @@
+{% extends "_base.html.j2" %}
+{% block title %}Design library{% endblock %}
+{% block heading %}Design library{% if query %}: {{ query }}{% endif %}{% if kind %} ({{ kind }}){% endif %}{% endblock %}
+{% block intro %}<p>What your library holds{% if query %} for this search{% endif %}. Leave a note on anything you want to use, ask for more like it, or add a link to bring something new in.</p>{% endblock %}
+{% block note_hint %}What you're looking for, or what's missing{% endblock %}

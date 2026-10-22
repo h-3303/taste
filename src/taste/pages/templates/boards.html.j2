@@ -1,0 +1,127 @@
+{% extends "_base.html.j2" %}
+{% block title %}{{ title }} moodboards{% endblock %}
+{% block heading %}{{ title }}: {{ boards|length }} moodboard{{ "" if boards|length == 1 else "s" }}{% endblock %}
+{% block intro %}<p>Keep or drop a whole board, or single images on it. Add a note to anything, or ask for more like it. Hover an image for its source. Picking one direction comes later.</p>{% endblock %}
+{% block note_hint %}Anything else? For example: board 2 but with the palette of board 3{% endblock %}
+{% block head %}{% for u in font_urls %}<link rel="stylesheet" href="{{ u }}">
+{% endfor %}{% endblock %}
+{% block style %}
+:root{--tape:rgba(240,226,170,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tape:rgba(200,180,110,.45)}}
+:root[data-theme="dark"]{--tape:rgba(200,180,110,.45)}
+main.wall{columns:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,640px),1fr));gap:28px;align-items:start}
+.board.item{margin:0;padding:20px;gap:14px;overflow:visible;border-radius:6px}
+.board>.votes,.board>.extra{border:1px solid var(--line);border-radius:4px}
+.board h2{margin:0;font-size:clamp(28px,4vw,44px);line-height:1}
+.why{margin:0;color:var(--muted)}
+.collage{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:210px;gap:10px;padding:10px 4px}
+.pic.item{margin:0;border-width:1px;overflow:visible;min-width:0;min-height:0}
+.collage .pic.big{grid-column:span 2;grid-row:span 2}
+.pic .ph{position:relative;flex:1;min-height:0;padding:4px;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.18);transform:rotate(var(--t,0deg));margin:6px}
+.collage .pic .ph::before{content:"";position:absolute;top:-8px;left:30%;width:46px;height:16px;background:var(--tape);transform:rotate(-4deg);z-index:3}
+.pic .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.masonry .pic .ph img{height:auto}
+.pic .ph .cap{position:absolute;inset:auto 4px 4px 4px;font-size:11px;background:rgba(0,0,0,.6);color:#fff;padding:2px 5px;opacity:0;transition:opacity .15s}
+.pic:hover .cap,.pic:focus-within .cap{opacity:1}
+.cap a{color:inherit}
+@media (hover:none){.pic .ph .cap{opacity:1}}
+.pic .votes button{padding:5px;font-size:12px}
+.pic .extra{padding:4px 6px 6px;flex-wrap:wrap}
+.pic .item-note{flex:1 1 100%;min-width:0}
+.pic .more{padding:4px 6px}
+.masonry{columns:3 190px;column-gap:10px}
+.masonry .pic.item{margin:0 0 10px}
+.sec{margin:6px 0 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.swatches{display:flex;height:38px;border-radius:4px;overflow:hidden}
+.swatches span{flex:1;display:flex;align-items:flex-end;padding:3px 5px;font:11px ui-monospace,monospace;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.type{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.type .display{font-size:40px;line-height:1}
+.type small{color:var(--muted)}
+.motifs{display:flex;gap:6px;flex-wrap:wrap}
+.motifs span{border:1px solid var(--muted);border-radius:99px;padding:1px 9px;font-size:12px}
+.pals{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.pal{border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:6px;border:1px solid rgba(127,127,127,.3)}
+.chips{display:flex;gap:4px}.chips span{width:22px;height:22px;border-radius:50%;border:1px solid rgba(127,127,127,.4)}
+.pal small{font:11px ui-monospace,monospace}
+.pair{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid rgba(127,127,127,.25)}
+.pair .fd{font-size:30px;line-height:1.1}.pair .fm{font-size:14px}.pair small{color:var(--muted)}
+.comps{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.comps small,.comps span{color:var(--muted)}.comps a{color:var(--ink)}
+@media (max-width:520px){.collage{grid-template-columns:repeat(2,1fr)}.collage .pic.big{grid-column:span 2}}
+{% endblock %}
+{% macro pic(b, it, big=false, collage=false) %}
+<figure class="item pic{{ ' big' if big }}" data-id="{{ b.id }}/{{ it.id }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+  <div class="ph" style="--t:{{ it.tilt if collage else 0 }}deg">
+    <img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">
+    <span class="cap">{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.source_note }}</a>{% else %}{{ it.source_note }}{% endif %} · {{ it.id }}</span>
+  </div>
+  <div class="votes">
+    {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="{{ v.label }} image {{ it.id }} on board {{ b.name }}">{{ v.label }}</button>{% endfor %}
+  </div>
+  <div class="extra">
+    <textarea class="item-note" rows="1" placeholder="Note" aria-label="Note on image {{ it.id }} on board {{ b.name }}"></textarea>
+    <button type="button" class="more" aria-pressed="false" aria-label="Find more like image {{ it.id }}">More like this</button>
+  </div>
+</figure>
+{% endmacro %}
+{% block wall %}
+{% for b in boards %}
+  <section class="item board" data-id="d{{ b.id }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+    <h2 style="font-family:'{{ b.type.display }}',serif">{{ b.id }}. {{ b.name }}</h2>
+    <p class="why">{{ b.rationale }}</p>
+    <div class="votes">
+      {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="{{ v.label }} board {{ b.name }}">{{ v.label }} this board</button>{% endfor %}
+    </div>
+    <div class="extra">
+      <textarea class="item-note" rows="1" placeholder="Note on this board" aria-label="Note on board {{ b.name }}"></textarea>
+      <button type="button" class="more" aria-pressed="false" aria-label="Find more like board {{ b.name }}">More like this</button>
+    </div>
+    {% if b.groups %}
+    {% for g in b.groups %}
+    <h3 class="sec">{{ g.label }}</h3>
+    <div class="masonry">{% for it in g["items"] %}{{ pic(b, it) }}{% endfor %}</div>
+    {% endfor %}
+    {% else %}
+    <div class="collage">{% for it in b["items"] %}{{ pic(b, it, it.big, true) }}{% endfor %}</div>
+    {% endif %}
+    <div class="swatches">{% for c in b.palette %}<span style="background:{{ c }}">{{ c }}</span>{% endfor %}</div>
+    <div class="type">
+      <span class="display" style="font-family:'{{ b.type.display }}',serif">Aa</span>
+      <span style="font-family:'{{ b.type.text }}',sans-serif">The quick brown fox jumps over the lazy dog.</span>
+      <small>{{ b.type.display }} / {{ b.type.text }}</small>
+    </div>
+    {% if b.pals %}
+    <h3 class="sec">Palettes</h3>
+    <div class="pals">
+    {% for pl in b.pals %}
+      <div class="pal" style="background:{{ pl.roles.bg }};color:{{ pl.roles.text or '#000000' }}">
+        <b>{{ pl.label }}</b>
+        <div class="chips">{% for r, c in pl.roles.items() %}<span title="{{ r }}" style="background:{{ c }}"></span>{% endfor %}</div>
+        <small>{% for r, v in pl.ratios.items() %}{{ r }} {{ "%.1f"|format(v) }}:1{% if not loop.last %} · {% endif %}{% endfor %}</small>
+      </div>
+    {% endfor %}
+    </div>
+    {% endif %}
+    {% if b.fonts %}
+    <h3 class="sec">Fonts</h3>
+    {% for f in b.fonts %}
+      <div class="pair">
+        <span class="fd" style="font-family:'{{ f.display }}',serif">{{ f.display }}</span>
+        <span style="font-family:'{{ f.text }}',sans-serif">{{ f.text }}: the quick brown fox jumps over the lazy dog.</span>
+        {% if f.mono %}<span class="fm" style="font-family:'{{ f.mono }}',monospace">ISO 400 · 1/250 · f/1.7 · +0.3 EV</span>{% endif %}
+        <small>{{ f.licence }}{% if f.note %} · {{ f.note }}{% endif %}</small>
+      </div>
+    {% endfor %}
+    {% endif %}
+    {% if b.comps %}
+    <h3 class="sec">Components</h3>
+    <ul class="comps">
+    {% for c in b.comps %}
+      <li>{% if c.link %}<a href="{{ c.link }}" target="_blank" rel="noopener">{{ c.name }}</a>{% else %}{{ c.name }}{% endif %} <small>{{ c.kind }} · {{ c.licence }}</small>{% if c.note %}<br><span>{{ c.note }}</span>{% endif %}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    <div class="motifs">{% for m in b.motifs %}<span>{{ m }}</span>{% endfor %}</div>
+  </section>
+{% endfor %}
+{% endblock %}

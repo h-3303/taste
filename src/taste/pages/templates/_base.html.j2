@@ -1,0 +1,222 @@
+<title>{% block title %}{{ title }}{% endblock %}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+{% block head %}{% endblock %}
+<style>
+/* Layout: a calm masonry wall of images; each card carries its own vote, note and "more like this". */
+:root{--bg:#f3f1ec;--ink:#1b1a18;--muted:#6a655d;--card:#fcfbf8;--line:#dcd7cd;--pos:#15803d;--neg:#b91c1c;
+  --font-body:system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141312;--ink:#ece8e1;--muted:#a19a8f;--card:#1f1d1b;--line:#38342f;--pos:#4ade80;--neg:#f87171;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141312;--ink:#ece8e1;--muted:#a19a8f;--card:#1f1d1b;--line:#38342f;--pos:#4ade80;--neg:#f87171;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--font-body);padding-block:24px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button:focus-visible,a:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button:disabled,textarea:disabled,input:disabled{cursor:not-allowed;opacity:.6}
+header,.wall,.page-foot{max-width:1600px;margin-inline:auto}
+header{margin-bottom:18px;display:flex;flex-direction:column;gap:10px}
+h1{margin:0;text-wrap:balance;font-size:clamp(22px,4vw,34px);font-weight:650;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);max-width:65ch}
+.repeat{color:var(--ink);font-size:13.5px;border-left:2px solid var(--line);padding-left:10px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:4px 12px;cursor:pointer;font:inherit;font-size:13px}
+.bar button[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+#count{font-weight:600;font-variant-numeric:tabular-nums}
+#status{color:var(--muted);font-size:13px}
+.wall{columns:4 280px;column-gap:14px}
+.item{break-inside:avoid;margin:0 0 14px;background:var(--card);border:2px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
+.item[data-tone="pos"]{border-color:var(--pos)}
+.item[data-tone="neg"]{border-color:var(--neg)}
+.item[data-tone="neg"]>img{opacity:.5}
+.item img{width:100%;max-width:100%;display:block;background:var(--line)}
+.blank{aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;background:var(--line);color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.meta{padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.meta b{font-size:14px;overflow-wrap:anywhere}
+.meta span{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.meta a{color:inherit}
+.votes{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border-top:1px solid var(--line)}
+.votes button{border:0;background:none;color:var(--muted);padding:9px;font:inherit;font-size:13px;cursor:pointer}
+.votes button+button{border-left:1px solid var(--line)}
+.votes button[data-tone="pos"][aria-pressed="true"]{color:var(--pos);font-weight:700}
+.votes button[data-tone="neg"][aria-pressed="true"]{color:var(--neg);font-weight:700}
+.extra{display:flex;gap:6px;align-items:flex-start;padding:6px 8px 8px;border-top:1px solid var(--line)}
+.item-note{flex:1;min-width:0;min-height:32px;height:32px;resize:vertical;padding:6px 8px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--ink);font:inherit;font-size:13px}
+.item-note:hover,.item-note:focus{border-color:var(--line);background:var(--bg)}
+.more{flex:none;border:1px solid var(--line);background:none;color:var(--muted);border-radius:4px;padding:6px 8px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.more[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.page-foot{margin-top:24px;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.page-foot label{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.page-foot textarea,.page-foot input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit}
+.page-foot textarea{min-height:72px;resize:vertical}
+.addrow{display:flex;gap:8px}
+.addrow input{flex:1;min-width:0}
+.addrow button{padding:8px 14px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font:inherit;font-weight:600;cursor:pointer}
+#links{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+#links li{display:flex;gap:8px;align-items:center;min-width:0}
+#links span{overflow-wrap:anywhere;min-width:0;flex:1;color:var(--muted)}
+#links button{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+{% block style %}{% endblock %}
+</style>
+<header>
+  <h1>{% block heading %}{{ title }}{% endblock %}</h1>
+  {% block intro %}{% endblock %}
+  {% if repeat_of %}<p class="repeat">This page is a repeat of pass {{ repeat_of }}. Vote again on anything you see differently now.</p>{% endif %}
+  <div class="bar" role="group" aria-label="Filter">
+    <button type="button" data-filter="" aria-pressed="true">All</button>
+    {% for t in tags %}<button type="button" data-filter="{{ t }}" aria-pressed="false">{{ t }}</button>{% endfor %}
+    {% if votes %}<button type="button" data-filter="@open" aria-pressed="false">Unmarked</button>{% endif %}
+  </div>
+  <div class="bar"><span id="count" role="status"></span><span id="status" aria-live="polite"></span></div>
+</header>
+<main class="wall" id="page" data-doc="{{ doc }}">
+{% block wall %}{% for it in items %}
+  <figure class="item" id="{{ it.id }}" data-id="{{ it.id }}" data-tag="{{ it.tag }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+    {% if it.src %}<img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">{% else %}<div class="blank" aria-hidden="true">{{ it.tag or "no preview" }}</div>{% endif %}
+    <figcaption class="meta">
+      <b>{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}</b>
+      <span>{{ it.sub }}</span>
+    </figcaption>
+    {% if votes %}<div class="votes">
+      {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="{{ v.label }} {{ it.title }}">{{ v.label }}</button>{% endfor %}
+    </div>{% endif %}
+    <div class="extra">
+      <textarea class="item-note" id="note-{{ it.id }}" rows="1" placeholder="Note" aria-label="Note on {{ it.title }}"></textarea>
+      <button type="button" class="more" aria-pressed="false" aria-label="Find more like {{ it.title }}">More like this</button>
+    </div>
+  </figure>
+{% endfor %}{% endblock %}
+</main>
+{% block after_wall %}{% endblock %}
+<section class="page-foot">
+  <div>
+    <label for="page-note">Anything else</label>
+    <textarea id="page-note" placeholder="{% block note_hint %}What you're after, what to avoid, anything the pictures miss{% endblock %}"></textarea>
+  </div>
+  <div>
+    <label for="add-url">Add a link</label>
+    <div class="addrow">
+      <input id="add-url" type="url" inputmode="url" placeholder="https://" autocomplete="off">
+      <button type="button" id="add-url-btn">Add</button>
+    </div>
+    <ul id="links"></ul>
+  </div>
+</section>
+<script>
+(async () => {
+  const page = document.getElementById("page");
+  const DOC = page.dataset.doc;
+  const cards = [...document.querySelectorAll(".item")];
+  const voting = cards.some(el => el.dataset.votes);
+  const count = document.getElementById("count"), status = document.getElementById("status");
+  const pageNote = document.getElementById("page-note"), addUrl = document.getElementById("add-url");
+  const addBtn = document.getElementById("add-url-btn"), links = document.getElementById("links");
+  let state = { items: {}, combos: [], prompts: [], requests: [], note: "" }, filter = "", ref = null, restored = false;
+  const hooks = [];   /* stage templates repaint their own controls here */
+
+  const get = id => state.items[id] || { vote: null, note: "" };
+  const put = (id, e) => { if (!e.vote && !e.note) delete state.items[id]; else state.items[id] = e; };
+  const wantsMore = id => state.requests.some(q => q.type === "more-like" && q.id === id);
+
+  const paint = () => {
+    cards.forEach(el => {
+      const e = get(el.dataset.id), v = e.vote || "";
+      let tone = "";
+      el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => {
+        const on = b.dataset.vote === v;
+        b.setAttribute("aria-pressed", String(on));
+        if (on) tone = b.dataset.tone;
+      });
+      el.dataset.tone = tone;
+      el.querySelector(":scope > .extra .more").setAttribute("aria-pressed", String(wantsMore(el.dataset.id)));
+      const ta = el.querySelector(":scope > .extra .item-note");
+      if (document.activeElement !== ta) ta.value = e.note || "";
+      el.hidden = filter === "@open" ? !!v : !!(filter && el.dataset.tag !== filter);
+    });
+    if (document.activeElement !== pageNote) pageNote.value = state.note || "";
+    links.replaceChildren(...state.requests.map((q, i) => {
+      if (q.type !== "add-url") return null;
+      const li = document.createElement("li"), s = document.createElement("span"), x = document.createElement("button");
+      s.textContent = q.url; x.type = "button"; x.textContent = "Remove"; x.disabled = !ref;
+      x.addEventListener("click", () => { state.requests.splice(i, 1); paint(); save(); });
+      li.append(s, x); return li;
+    }).filter(Boolean));
+    const noted = cards.filter(el => get(el.dataset.id).note).length;
+    if (voting) {
+      const tally = {};
+      cards.forEach(el => { const v = get(el.dataset.id).vote; if (v) tally[v] = (tally[v] || 0) + 1; });
+      const marked = Object.values(tally).reduce((a, b) => a + b, 0);
+      const parts = [...cards[0].dataset.votes.split(" ")].map(v => `${tally[v] || 0} ${v}`);
+      count.textContent = [...parts, `${cards.length - marked} unmarked`].join(" · ");
+    } else {
+      count.textContent = `${cards.length} item${cards.length === 1 ? "" : "s"}${noted ? ` · ${noted} with notes` : ""}`;
+    }
+    hooks.forEach(f => f());
+  };
+
+  document.querySelectorAll("[data-filter]").forEach(b => b.addEventListener("click", () => {
+    filter = b.dataset.filter;
+    document.querySelectorAll("[data-filter]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    paint();
+  }));
+
+  let db = null;
+  try { db = window.claude ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  ref = db && DOC ? db.doc(DOC) : null;
+  if (ref) {
+    try {
+      const s = await ref.get();
+      if (s.exists) {
+        restored = true;
+        const d = s.data() || {};
+        state = { items: d.items || {}, combos: d.combos || [], prompts: d.prompts || [], requests: d.requests || [], note: d.note || "" };
+      }
+    } catch (e) { status.textContent = "Couldn't load your earlier choices. New ones still save."; }
+  } else {
+    status.textContent = "This view is read-only. Tell Claude Code what you think, by id.";
+    document.querySelectorAll("[data-vote], .more, .item-note, #page-note, #add-url, #add-url-btn").forEach(c => { c.disabled = true; });
+  }
+
+  let timer = null;
+  const save = async () => {
+    clearTimeout(timer); timer = null;
+    if (!ref) return;
+    try { await ref.set({ ...state, at: new Date().toISOString() }); status.textContent = "Saved."; }
+    catch (e) { status.textContent = "Couldn't save. Try again, or tell Claude Code what you think."; }
+  };
+  const saveSoon = () => { clearTimeout(timer); timer = setTimeout(save, 700); };
+
+  cards.forEach(el => {
+    const id = el.dataset.id;
+    el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => b.addEventListener("click", () => {
+      const e = get(id), on = e.vote !== b.dataset.vote;
+      put(id, { ...e, vote: on ? b.dataset.vote : null });
+      /* items sharing a data-group hold one vote between them: voting one clears its siblings */
+      if (on && el.dataset.group) cards.forEach(o => {
+        if (o === el || o.dataset.group !== el.dataset.group) return;
+        const x = get(o.dataset.id);
+        if (x.vote) put(o.dataset.id, { ...x, vote: null });
+      });
+      paint(); save();
+    }));
+    const ta = el.querySelector(":scope > .extra .item-note");
+    ta.addEventListener("input", () => { put(id, { ...get(id), note: ta.value }); saveSoon(); });
+    ta.addEventListener("change", () => { put(id, { ...get(id), note: ta.value.trim() }); paint(); save(); });
+    el.querySelector(":scope > .extra .more").addEventListener("click", () => {
+      if (wantsMore(id)) state.requests = state.requests.filter(q => !(q.type === "more-like" && q.id === id));
+      else state.requests.push({ type: "more-like", id: id });
+      paint(); save();
+    });
+  });
+  pageNote.addEventListener("input", () => { state.note = pageNote.value; saveSoon(); });
+  pageNote.addEventListener("change", () => { state.note = pageNote.value.trim(); save(); });
+  const add = () => {
+    const url = addUrl.value.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) { status.textContent = "Paste a full link starting with https://"; return; }
+    if (!state.requests.some(q => q.type === "add-url" && q.url === url)) state.requests.push({ type: "add-url", url });
+    addUrl.value = ""; paint(); save();
+  };
+  addBtn.addEventListener("click", add);
+  addUrl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+{% block script %}{% endblock %}
+  paint();
+})();
+</script>
