@@ -70,7 +70,8 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
         link_rows: list[dict] = []
         for r in conn.execute("SELECT * FROM items ORDER BY rowid"):
             meta = json.loads(r["meta"] or "{}")
-            how = classify(r["source"], r["license"] or "", r["page_url"] or "", r["asset_url"] or "")
+            how = classify(r["source"], r["license"] or "", r["page_url"] or "", r["asset_url"] or "",
+                           code=meta.get("code") or "")
             if how == "never" or meta.get("private"):
                 skipped += 1
                 continue

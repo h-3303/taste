@@ -12,6 +12,7 @@ import yaml
 from taste import cli, licences, seed
 from taste.connectors import REGISTRY
 from taste.library import db
+from tests.test_licences import LYGIA_BSD, LYGIA_PROSPERITY
 
 ROOT = Path(__file__).resolve().parent.parent
 SHIPPED = ["skills", "src/taste", "README.md", ".claude-plugin"]
@@ -134,18 +135,21 @@ def mixed_lib(tmp_path):
     conn = db.connect(tmp_path / "lib.db")
     source_of = {}
     rows = ([(s, "OFL", "https://ex.test/p") for s in FILE_ROWS]
-            + [("lygia", "BSD-3-Clause", "https://lygia.xyz/a"), ("lygia", "Prosperity", "https://lygia.xyz/b")]
+            + [("lygia", "BSD-3 (prosperity for some)", "https://lygia.xyz/a"),
+               ("lygia", "BSD-3 (prosperity for some)", "https://lygia.xyz/b")]
             + [(s, "", "https://ex.test/p") for s in LINK_ROWS]
             + [("metalforge", "proprietary", "https://ex.test/p"), ("mine", "", "https://ex.test/p"),
                ("cosmos", "", "https://www.are.na/block/1")])
+    lygia_code = iter([LYGIA_BSD, LYGIA_PROSPERITY])
     for k, (src, lic, page) in enumerate(rows):
         iid = f"it{k:03d}"
+        meta = json.dumps({"code": next(lygia_code)}) if src == "lygia" else "{}"
         (thumbs / f"{iid}.jpg").write_bytes(b"jpg")
         conn.execute("INSERT OR IGNORE INTO sources(slug, title, tier, policy) VALUES (?,?,?,?)", (src, src, 1, "sync"))
         conn.execute("INSERT INTO items(id,key,source,kind,title,page_url,asset_url,thumb,tags,meta,license,added_at,last_seen)"
                      " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                     (iid, f"{src}:{k}", src, "image", f"t{k}", page, "", f"thumbs/{iid}.jpg", "[]", "{}", lic, "t", "t"))
-        source_of[iid] = (src, lic)
+                     (iid, f"{src}:{k}", src, "image", f"t{k}", page, "", f"thumbs/{iid}.jpg", "[]", meta, lic, "t", "t"))
+        source_of[iid] = (src, "Prosperity" if "Prosperity License" in meta else lic)
     conn.commit()
     return SimpleNamespace(conn=conn, thumbs=thumbs, source_of=source_of)
 
