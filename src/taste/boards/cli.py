@@ -15,7 +15,9 @@ from .inbox import is_style, take_inbox
 from .pool import build_pool
 from .run import Run, data_root
 from .sheet import contact_sheets
-from .vaultmedia import IMAGE_SUFFIXES
+from taste.connectors import enabled
+from taste.connectors.folders import IMAGE_SUFFIXES
+from taste.connectors.presets import InstagramMedia, ObsidianResources
 
 MIN_POOL = 24
 
@@ -28,8 +30,11 @@ def cmd_new(a):
         return 1
     run = Run.create(a.slug)
     lib = []
+    obs = next((c for c in enabled() if isinstance(c, ObsidianResources)), None)
+    if obs:
+        lib = obs.load()
     run.write("library.json", lib)
-    print(f"run: {run.path}\nlibrary: {len(lib)} resource notes")
+    print(f"run: {run.path}\nlibrary: " + (f"{len(lib)} resource notes" if obs else "no Obsidian connector"))
 
 
 def dlib_pluck(item_id: str, out: Path) -> dict | None:
@@ -50,6 +55,30 @@ def dlib_pluck(item_id: str, out: Path) -> dict | None:
     except (KeyError, ValueError, FetchError, OSError):
         return None
     return {"path": str(r.path), "title": meta.get("title", item_id), "page_url": meta.get("page_url", "")}
+
+
+def connector_candidates(conns, dest: Path, http=None):
+    """Untagged candidates from the folder connectors: local images as they are, image URLs downloaded,
+    any other URL skipped (a link to a page is not an image)."""
+    from taste.connectors.folders import FolderImages, FolderNotes, is_image_url
+    cands, failures = [], []
+    for c in conns:
+        if not isinstance(c, (FolderImages, FolderNotes)):
+            continue
+        for n, it in enumerate(c.items()):
+            if it["path"]:
+                cands.append(Candidate("folder", Path(it["path"]), it["source_url"], it["note"] or c.name, it["title"]))
+            elif it["url"] and is_image_url(it["url"]):
+                from .net import Http
+                http = http or Http()
+                target = dest / "folder" / f"{c.name}-{n}{Path(it['url'].split('?')[0]).suffix.lower()}"
+                try:
+                    http.download(it["url"], target)
+                except Exception as e:   # one dead link must not stop the gather
+                    failures.append(f"{it['url']}: {e}")
+                    continue
+                cands.append(Candidate("folder", target, it["url"], it["note"] or c.name, it["title"]))
+    return cands, failures
 
 
 def cmd_gather(a):
@@ -77,6 +106,14 @@ def cmd_gather(a):
             for x in c:
                 x.style = x.style or st["id"]   # an item found for two styles keeps the first
             cands += c; failures += f
+    conns = enabled()
+    for st in styles:
+        for c in conns:
+            if isinstance(c, InstagramMedia):
+                for it in c.for_codes(st.get("vault_posts", [])):
+                    cands.append(Candidate("vault", Path(it["path"]), it["source_url"], it["note"], it["title"], st["id"]))
+    c, f = connector_candidates(conns, run.raw, http)
+    cands += c; failures += f
     for st in styles:
         for iid in [*st.get("dlib_ids", []), *(a.dlib or [])]:
             got = dlib_pluck(iid, run.raw / "dlib")

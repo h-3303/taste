@@ -80,8 +80,8 @@ def test_connect_disconnect_connectors(env, capsys):
 
 
 def test_connect_path(env):
-    assert cli.main(["connect", "vault", "--path", "/v"]) == 0
-    assert config.connector("vault")["path"] == "/v"
+    assert cli.main(["connect", "obsidian-resources", "--path", "/v"]) == 0
+    assert config.connector("obsidian-resources")["path"] == "/v"
 
 
 def test_boards_commands_at_top_level(env, capsys):

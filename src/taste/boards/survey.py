@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from .canvas import _link, env
 from .run import clean_text
-from .vaultmedia import IMAGE_SUFFIXES
+from taste.connectors.folders import IMAGE_SUFFIXES
 
 
 def _dir(run_dir) -> Path:

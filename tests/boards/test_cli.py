@@ -1,4 +1,3 @@
-import pytest
 import json
 
 from PIL import Image
@@ -17,6 +16,9 @@ def vault(tmp_path):
     for k in range(1, 5):    # one post per style, 9 noise images each (all distinct for the duplicate check)
         for i in range(1, 10):
             Image.effect_noise((800, 600), 80).convert("RGB").save(media / f"S{k}_{i}.png")
+    from taste.cli import main as taste_main
+    assert taste_main(["connect", "obsidian-resources", "--path", str(tmp_path / "vault")]) == 0
+    assert taste_main(["connect", "instagram-media", "--path", str(media.parent)]) == 0
     return tmp_path / "vault"
 
 
@@ -39,6 +41,7 @@ def make_dirs(pool, font="Inter", skip=0):
 def gathered_run(tmp_path, monkeypatch):
     monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     fill_library()
+    vault(tmp_path)
     assert main(["new", "Test Project"]) == 0
     run = next((tmp_path / "data" / "runs").iterdir())
     (run / "refs.json").write_text(json.dumps(styles_refs()))
@@ -46,10 +49,10 @@ def gathered_run(tmp_path, monkeypatch):
     return run, json.loads((run / "pool.json").read_text())
 
 
-@pytest.mark.xfail(reason="connector, Task 15")
 def test_new_gather_sheet_canvas_brief(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     fill_library()
+    vault(tmp_path)
     assert main(["new", "Test Project"]) == 0
     run = next((tmp_path / "data" / "runs").iterdir())
     assert json.loads((run / "library.json").read_text())[0]["note"] == "Pear"
@@ -107,7 +110,6 @@ def test_validate_reports_errors(tmp_path, capsys):
     assert "at least 1 direction" in capsys.readouterr().out
 
 
-@pytest.mark.xfail(reason="connector, Task 15")
 def test_canvas_out_twice_does_not_nest(tmp_path, monkeypatch, capsys):
     run, pool = gathered_run(tmp_path, monkeypatch)
     out = tmp_path / "scratch" / "moodboards-x"
@@ -159,7 +161,6 @@ def test_gather_needs_styles(tmp_path, monkeypatch, capsys):
     assert "styles" in capsys.readouterr().out
 
 
-@pytest.mark.xfail(reason="connector, Task 15")
 def test_gather_prints_counts_per_style(tmp_path, monkeypatch, capsys):
     run, pool = gathered_run(tmp_path, monkeypatch)
     out = capsys.readouterr().out
@@ -224,3 +225,43 @@ def test_gather_pulls_dlib_ids(monkeypatch, tmp_path, capsys):
     assert cli.main(["gather", str(run.path), "--no-sites"]) == 0
     pool = run.read("pool.json")
     assert pool["images"] and pool["images"][0]["kind"] == "library" and pool["images"][0]["style"] == "1"
+
+
+def test_new_without_connector_says_so(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
+    fill_library()
+    assert main(["new", "Bare"]) == 0
+    run = next((tmp_path / "data" / "runs").iterdir())
+    assert json.loads((run / "library.json").read_text()) == []
+    assert "no Obsidian connector" in capsys.readouterr().out
+
+
+def test_gather_folder_connectors(tmp_path, monkeypatch):
+    from taste.cli import main as taste_main
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
+    fill_library()
+    pics = tmp_path / "pics"
+    pics.mkdir()
+    for i in range(3):
+        Image.effect_noise((800, 600), 80).convert("RGB").save(pics / f"p{i}.png")
+    notes = tmp_path / "notes"
+    notes.mkdir()
+    (notes / "n.md").write_text("# N\nhttps://page.example/article and https://cdn.example/x.png\n")
+    assert taste_main(["connect", "folder-images", "--path", str(pics)]) == 0
+    assert taste_main(["connect", "folder-notes", "--path", str(notes)]) == 0
+    fetched = []
+
+    class Http:
+        def download(self, url, dest):
+            fetched.append(url)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            Image.effect_noise((800, 600), 80).convert("RGB").save(dest, "PNG")
+            return dest
+    monkeypatch.setattr("taste.boards.net.Http", Http)
+    assert main(["new", "F"]) == 0
+    run = next((tmp_path / "data" / "runs").iterdir())
+    (run / "refs.json").write_text(json.dumps({"styles": []}))
+    assert main(["gather", str(run), "--no-sites"]) == 0
+    pool = json.loads((run / "pool.json").read_text())
+    assert fetched == ["https://cdn.example/x.png"]
+    assert len(pool["images"]) == 4 and {r["kind"] for r in pool["images"]} == {"folder"}

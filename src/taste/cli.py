@@ -104,10 +104,21 @@ def _cmd_seed(rest: list[str]) -> int:
     return 0
 
 
+def _check_name(name: str) -> int:
+    from .connectors import REGISTRY
+    known = [*REGISTRY, "obscura"]
+    if name in known:
+        return 0
+    print(f"error: unknown connector {name!r}; known: {', '.join(known)}", file=sys.stderr)
+    return 1
+
+
 def _cmd_connect(rest: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="taste connect")
     ap.add_argument("name"); ap.add_argument("--path"); ap.add_argument("--bin")
     a = ap.parse_args(rest)
+    if (rc := _check_name(a.name)):
+        return rc
     cfg = config.load()
     entry = {**cfg.setdefault("connectors", {}).get(a.name, {}), "enabled": True}
     for key in ("path", "bin"):
@@ -123,6 +134,8 @@ def _cmd_disconnect(rest: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="taste disconnect")
     ap.add_argument("name")
     a = ap.parse_args(rest)
+    if (rc := _check_name(a.name)):
+        return rc
     cfg = config.load()
     cfg.setdefault("connectors", {}).setdefault(a.name, {})["enabled"] = False
     config.save(cfg)

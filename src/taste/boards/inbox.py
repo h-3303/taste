@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from .models import Candidate
-from .vaultmedia import IMAGE_SUFFIXES
+from taste.connectors.folders import IMAGE_SUFFIXES
 
 
 def is_style(name: str) -> bool:
