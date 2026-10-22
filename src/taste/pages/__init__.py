@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from jinja2 import Environment, PackageLoader
 
 from .. import rounds
-from ..boards.run import Run, clean_text
+from ..boards.run import Run, clean_text, fresh_out
 
 env = Environment(loader=PackageLoader("taste.pages"), autoescape=True)
 
@@ -22,13 +22,8 @@ def _link(url) -> str:
 
 
 def _fresh(out_dir: Path) -> Path:
-    """Clear an earlier render in out_dir (index.html, img/, files.json)."""
-    out_dir = Path(out_dir)
-    shutil.rmtree(out_dir / "img", ignore_errors=True)
-    for name in ("index.html", "files.json"):
-        (out_dir / name).unlink(missing_ok=True)
-    (out_dir / "img").mkdir(parents=True)
-    return out_dir
+    """Clear an earlier render in out_dir; a non-empty folder that holds none is refused (ValueError)."""
+    return fresh_out(out_dir)
 
 
 def _write(out_dir: Path, template: str, files: dict, **ctx) -> Path:

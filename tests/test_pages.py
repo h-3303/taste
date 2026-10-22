@@ -347,3 +347,32 @@ def test_review_page_needs_valid_proposals(tmp_path, capsys):
     assert main(["round", "render", str(run.path), "review", "--title", "Shop", "--out", str(tmp_path / "r")]) == 1
     assert "Projects" in capsys.readouterr().err
     assert not (run.path / "rounds" / "review-1.json").exists()
+
+
+def test_render_refuses_a_non_empty_out_without_an_earlier_render(tmp_path, capsys):
+    run = _run(tmp_path)
+    out = tmp_path / "mine"
+    out.mkdir()
+    (out / "notes.txt").write_text("mine")
+    (out / "img").mkdir()
+    (out / "img" / "photo.jpg").write_bytes(b"mine")
+    import pytest
+    with pytest.raises(ValueError, match="not empty"):
+        render_round(run, "broad", "Shop", out)
+    assert (out / "notes.txt").read_text() == "mine" and (out / "img" / "photo.jpg").read_bytes() == b"mine"
+    assert not (run.path / "rounds" / "broad-1.json").exists()      # no pass started
+    assert main(["round", "render", str(run.path), "broad", "--title", "Shop", "--out", str(out)]) == 1
+    assert "not empty" in capsys.readouterr().err
+    assert (out / "notes.txt").exists()
+
+
+def test_render_reuses_an_earlier_render_folder_and_an_empty_one(tmp_path):
+    run = _run(tmp_path)
+    out = tmp_path / "o"
+    render_round(run, "broad", "Shop", out)
+    (out / "img" / "stale.png").write_bytes(b"x")
+    render_round(run, "broad", "Shop", out)                          # files.json marks it as ours
+    assert not (out / "img" / "stale.png").exists()
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert render_round(run, "broad", "Shop", empty).is_file()

@@ -102,3 +102,16 @@ def test_cli_survey_keep_reports_unknown_numbers(tmp_path, capsys):
     assert main(["survey-keep", str(run), "01", "--why", "trending", "--tag", "web"]) == 0
     assert "s001" in capsys.readouterr().out
     assert main(["survey-keep", str(run), "05", "--why", "x"]) == 1
+
+
+def test_render_refuses_a_non_empty_out_without_an_earlier_render(tmp_path):
+    run = tmp_path / "run"
+    survey.add(run, str(img(tmp_path / "a.jpg")), title="A", source="https://x/a", why="award")
+    out = tmp_path / "mine"
+    out.mkdir()
+    (out / "keep.txt").write_text("mine")
+    with pytest.raises(ValueError, match="not empty"):
+        survey.render(run, out, "W")
+    assert (out / "keep.txt").read_text() == "mine"
+    assert main(["survey-canvas", str(run), "--title", "W", "--out", str(out)]) == 1
+    assert (out / "keep.txt").exists()

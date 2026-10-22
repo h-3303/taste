@@ -126,3 +126,13 @@ def test_heading_counts_the_directions(tmp_path):
     dirs["directions"] = dirs["directions"][:3]
     html = render_canvas(dirs, pool, images, tmp_path / "c", "X").read_text()
     assert "3 directions" in html and "four directions" not in html
+
+
+def test_render_refuses_a_non_empty_out_without_an_earlier_render(tmp_path):
+    images, pool, dirs = setup(tmp_path)
+    out = tmp_path / "mine"
+    out.mkdir()
+    (out / "index.html").write_text("my own page")
+    with pytest.raises(ValueError, match="not empty"):
+        render_canvas(dirs, pool, images, out, "T")
+    assert (out / "index.html").read_text() == "my own page"

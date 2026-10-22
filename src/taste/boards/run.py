@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 import unicodedata
 from datetime import date as Date
 from pathlib import Path
@@ -28,6 +29,23 @@ def clean_text(text, limit: int = 120, markdown: bool = True) -> str:
 def md_line(text, limit: int = 300) -> str:
     """One escaped markdown line: links escaped by clean_text, inline HTML neutralised."""
     return clean_text(text, limit=limit).replace("<", "&lt;")
+
+
+def fresh_out(out_dir) -> Path:
+    """Make out_dir ready for a render: an empty or new folder, or one holding an earlier render (its files.json),
+    whose index.html, img/ and files.json are cleared. Anything else is the person's and is refused."""
+    out_dir = Path(out_dir)
+    if out_dir.exists():
+        if not out_dir.is_dir():
+            raise ValueError(f"--out {out_dir} is a file, not a folder")
+        if any(out_dir.iterdir()) and not (out_dir / "files.json").is_file():
+            raise ValueError(f"--out {out_dir} is not empty and holds no earlier render (no files.json); "
+                             "give an empty or new folder")
+    shutil.rmtree(out_dir / "img", ignore_errors=True)
+    for name in ("index.html", "files.json"):
+        (out_dir / name).unlink(missing_ok=True)
+    (out_dir / "img").mkdir(parents=True)
+    return out_dir
 
 
 class Run:

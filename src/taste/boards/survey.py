@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .canvas import _link, env
-from .run import clean_text
+from .run import clean_text, fresh_out
 from taste.connectors.folders import IMAGE_SUFFIXES
 
 
@@ -58,11 +58,7 @@ def render(run_dir, out_dir, title: str) -> Path:
     items = load(run_dir)
     if not items:
         raise ValueError("the survey is empty: add items with survey-add first")
-    out_dir = Path(out_dir)
-    shutil.rmtree(out_dir / "img", ignore_errors=True)
-    for name in ("index.html", "files.json"):
-        (out_dir / name).unlink(missing_ok=True)
-    (out_dir / "img").mkdir(parents=True)
+    out_dir = fresh_out(out_dir)
     files, cards = {}, []
     for it in items:
         rel = f"img/{it['file']}"

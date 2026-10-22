@@ -7,7 +7,7 @@ from urllib.parse import quote_plus, urlsplit
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from .directions import style_errors
-from .run import clean_text
+from .run import clean_text, fresh_out
 
 env = Environment(loader=PackageLoader("taste.boards", "templates"), autoescape=select_autoescape(["j2", "html"]))
 
@@ -113,11 +113,7 @@ def build_boards(directions: dict, pool: dict, images_dir: Path, out_dir: Path) 
 def render_canvas(directions: dict, pool: dict, images_dir: Path, out_dir: Path, title: str) -> Path:
     """Render into out_dir, replacing an earlier render there (index.html, img/, files.json)."""
     check_directions(directions)
-    out_dir = Path(out_dir)
-    shutil.rmtree(out_dir / "img", ignore_errors=True)
-    for name in ("index.html", "files.json"):
-        (out_dir / name).unlink(missing_ok=True)
-    (out_dir / "img").mkdir(parents=True)
+    out_dir = fresh_out(out_dir)
     boards, files, font_urls = build_boards(directions, pool, images_dir, out_dir)
     html = env.get_template("canvas.html.j2").render(title=title, boards=boards, font_urls=font_urls)
     (out_dir / "index.html").write_text(html, encoding="utf-8")
