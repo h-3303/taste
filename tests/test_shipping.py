@@ -148,7 +148,7 @@ def mixed_lib(tmp_path):
         conn.execute("INSERT OR IGNORE INTO sources(slug, title, tier, policy) VALUES (?,?,?,?)", (src, src, 1, "sync"))
         conn.execute("INSERT INTO items(id,key,source,kind,title,page_url,asset_url,thumb,tags,meta,license,added_at,last_seen)"
                      " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                     (iid, f"{src}:{k}", src, "image", f"t{k}", page, "", f"thumbs/{iid}.jpg", "[]", meta, lic, "t", "t"))
+                     (iid, f"{src}:{k}", src, "image", f"t{k}", page, f"https://cdn.test/{iid}.jpg", f"thumbs/{iid}.jpg", "[]", meta, lic, "t", "t"))
         source_of[iid] = (src, "Prosperity" if "Prosperity License" in meta else lic)
     conn.commit()
     return SimpleNamespace(conn=conn, thumbs=thumbs, source_of=source_of)

@@ -63,6 +63,8 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
     thumbs_dir, out = Path(thumbs_dir), Path(out)
     files = links = skipped = 0
     shipped: dict[str, str] = {}      # item id -> "file" | "link"
+    tally: dict[str, dict] = {}       # source -> counts and licences, for NOTICE.md
+    titles: dict[str, tuple[str, str]] = {}
     with tempfile.TemporaryDirectory() as tmp:
         seed_path = Path(tmp) / "seed.db"
         sdb = db.connect(seed_path)
@@ -84,15 +86,22 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
                 else:
                     row["thumb"] = None
             else:
-                links += 1
-                row["thumb"] = None
                 meta = _clean(meta)
-                meta["shipping"] = "link"
                 au = row["asset_url"] or ""
                 row["asset_url"] = au if _is_http(au) and not banned(au) else ""
+                # an image link nobody else can fetch (a local keeper) is an empty entry: leave it out
+                if row["kind"] == "image" and not row["asset_url"] and not _is_http(str(meta.get("thumb_url") or "")):
+                    skipped += 1
+                    continue
+                links += 1
+                row["thumb"] = None
+                meta["shipping"] = "link"
                 row["hash"] = None
                 row["meta"] = json.dumps(meta, ensure_ascii=False)
             shipped[r["id"]] = how
+            t = tally.setdefault(r["source"], {"file": 0, "link": 0, "licences": set()})
+            t[how] += 1
+            t["licences"].add(r["license"] or "see source page")
             if how == "link":
                 link_rows.append(row)
             sdb.execute(f"INSERT INTO items({','.join(_ITEM_COLS)}) VALUES ({','.join('?' * len(_ITEM_COLS))})",
@@ -108,19 +117,44 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
         for s in conn.execute("SELECT * FROM sources"):
             if s["slug"] in sources:
                 d = dict(s)
+                d["error"] = d["synced_at"] = None    # local error text can hold paths
+                titles[s["slug"]] = (s["title"] or s["slug"], s["home_url"] or "")
                 sdb.execute(f"INSERT INTO sources({','.join(d)}) VALUES ({','.join('?' * len(d))})", list(d.values()))
         for row in link_rows:
             st = db._search_text(sdb, row["id"], row["source"], row["kind"], json.loads(row["meta"]))
             sdb.execute("UPDATE items SET search_text = ? WHERE id = ?", (st, row["id"]))
         sdb.commit()
+        # Overwritten values linger in free pages and old FTS segments: rebuild and vacuum so the
+        # shipped file holds only the scrubbed rows.
+        sdb.execute("INSERT INTO items_fts(items_fts) VALUES('rebuild')")
+        sdb.commit()
         sdb.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        sdb.execute("VACUUM")
         sdb.close()
         out.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(seed_path, "seed.db")
             for p in thumb_files:
                 z.write(p, f"thumbs/{p.name}")
+            z.writestr("NOTICE.md", _notice(tally, titles))
     return SeedReport(files, links, skipped)
+
+
+def _notice(tally: dict, titles: dict) -> str:
+    out = ["# Seed library notice", "",
+           "Items marked **file** ship with a thumbnail and keep their own licence (listed below; plucked assets come",
+           "from the source). Items marked **link** ship only a title, tags and links: their images stay with their",
+           "owners and are fetched on your machine when first shown. Code snippets keep their original licences and",
+           "copyright notices at the source repository.", ""]
+    for slug in sorted(tally):
+        t = tally[slug]
+        title, home = titles.get(slug, (slug, ""))
+        how = ", ".join(f"{t[k]} {k}" for k in ("file", "link") if t[k])
+        out.append(f"## {title} (`{slug}`)")
+        out.append(f"- {how}" + (f" · {home}" if home else ""))
+        out.append("- licence: " + "; ".join(sorted(t["licences"])))
+        out.append("")
+    return "\n".join(out)
 
 
 def install_seed(archive: Path, conn, thumbs_dir: Path) -> int:

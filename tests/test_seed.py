@@ -10,8 +10,10 @@ from taste import cli, seed
 from taste.library import db, paths
 
 
-def add(conn, source, key, thumbs=None, meta=None, page="https://ex.test/p", asset="", lic="CC0", coll=None):
+def add(conn, source, key, thumbs=None, meta=None, page="https://ex.test/p", asset=None, lic="CC0", coll=None):
     iid = key.replace(":", "")
+    if asset is None:
+        asset = f"https://cdn.test/{iid}.jpg"   # gallery items carry a remote image
     thumb = None
     if thumbs is not None:
         thumb = f"thumbs/{iid}.jpg"
@@ -57,6 +59,20 @@ def test_seed_ships_files_links_and_nothing_else(tmp_path, lib):
     assert json.loads(next(m for s, _, m in rows if s == "cosmos"))["shipping"] == "link"
     assert [r[0] for r in c.execute("select slug from collections order by slug")] == ["cos-coll", "ph-coll"]
     assert c.execute("select count(*) from item_collections").fetchone()[0] == 2
+
+
+def test_seed_carries_a_notice_per_shipped_source(tmp_path, lib):
+    lib.conn.execute("UPDATE sources SET home_url = 'https://polyhaven.com', title = 'Poly Haven' WHERE slug = 'polyhaven'")
+    lib.conn.execute("UPDATE sources SET error = 'boom in /home/someone/x', synced_at = 't' WHERE slug = 'cosmos'")
+    lib.conn.commit()
+    seed.build_seed(lib.conn, lib.thumbs, tmp_path / "s.zip")
+    z = zipfile.ZipFile(tmp_path / "s.zip")
+    notice = z.read("NOTICE.md").decode()
+    assert "Poly Haven" in notice and "https://polyhaven.com" in notice and "CC0" in notice
+    assert "cosmos" in notice and "link" in notice.lower()
+    assert "metalforge" not in notice and "mine" not in notice
+    c = sqlite3.connect(extract(z, "seed.db"))
+    assert c.execute("select error, synced_at from sources where slug = 'cosmos'").fetchone() == (None, None)
 
 
 def test_install_keeps_user_rows_and_thumbs(tmp_path, lib):
@@ -122,7 +138,7 @@ def test_link_rows_are_scrubbed(tmp_path, lib):
             "images": ["https://ok.test/1.jpg"], "reference_images": ["https://images.are.na/x.jpg"],
             "nested": {"refs": ["https://images.are.na/x.jpg", "/home/x/y.png", "data:image/png;base64,AAA",
                                 "https://fine.test/z"], "local": "/etc/passwd"},
-            "palette": "warm"}
+            "palette": "warm", "thumb_url": "https://ok.test/t.jpg"}
     add(lib.conn, "curated", "cur:k1", None, meta=meta, asset="/home/x/.taste/cache/curated/k1.svg")
     lib.conn.execute("UPDATE items SET hash='ffee', search_text='origin /home/x/.taste/a.svg' WHERE key='cur:k1'")
     add(lib.conn, "cosmos", "cos:2", None, asset="https://images.are.na/y.jpg")
@@ -141,6 +157,29 @@ def test_link_rows_are_scrubbed(tmp_path, lib):
     assert c.execute("select asset_url from items where key='cos:3'").fetchone()[0] == "https://cdn.test/ok.jpg"
     assert c.execute("select 1 from items where key='cos:2'").fetchone() is None   # banned asset: never
     assert c.execute("select count(*) from items_fts where items_fts match 'warm'").fetchone()[0] == 1
+
+
+def test_image_links_without_a_remote_image_do_not_ship(tmp_path, lib):
+    add(lib.conn, "curated", "cur:local", None, asset="/home/x/inbox/2/scout-2026-10-08-client-2-10.jpg")
+    add(lib.conn, "curated", "cur:web", None, asset="https://cdn.test/keeper.jpg")
+    add(lib.conn, "curated", "cur:thumburl", None, meta={"thumb_url": "https://cdn.test/t.jpg"}, asset="")
+    lib.conn.commit()
+    rep = seed.build_seed(lib.conn, lib.thumbs, tmp_path / "s.zip")
+    c = sqlite3.connect(extract(zipfile.ZipFile(tmp_path / "s.zip"), "seed.db"))
+    keys = {k for (k,) in c.execute("select key from items where source = 'curated'")}
+    assert keys == {"cur:web", "cur:thumburl"}
+    assert rep.skipped == 4      # the fixture's three never-ship rows plus the local-only keeper
+
+
+def test_seed_file_bytes_hold_no_scrubbed_text(tmp_path, lib):
+    # SQLite keeps overwritten values in free pages; the shipped file itself must be clean.
+    for i in range(40):
+        add(lib.conn, "curated", f"cur:b{i}", None, meta={"origin": f"/home/x/inbox/{i}.jpg", "added_by": "dlib add"})
+    lib.conn.execute("UPDATE items SET search_text = 'dlib add ' || json_extract(meta, '$.origin') WHERE source = 'curated'")
+    lib.conn.commit()
+    seed.build_seed(lib.conn, lib.thumbs, tmp_path / "s.zip")
+    raw = zipfile.ZipFile(tmp_path / "s.zip").read("seed.db")
+    assert b"/home/x" not in raw
 
 
 def test_install_normalises_crafted_thumb(tmp_path):
