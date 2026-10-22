@@ -109,7 +109,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   const count = document.getElementById("count"), status = document.getElementById("status");
   const pageNote = document.getElementById("page-note"), addUrl = document.getElementById("add-url");
   const addBtn = document.getElementById("add-url-btn"), links = document.getElementById("links");
-  let state = { items: {}, combos: [], prompts: [], requests: [], note: "" }, filter = "", ref = null;
+  let state = { items: {}, combos: [], prompts: [], requests: [], note: "" }, filter = "", ref = null, restored = false;
   const hooks = [];   /* stage templates repaint their own controls here */
 
   const get = id => state.items[id] || { vote: null, note: "" };
@@ -165,6 +165,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
     try {
       const s = await ref.get();
       if (s.exists) {
+        restored = true;
         const d = s.data() || {};
         state = { items: d.items || {}, combos: d.combos || [], prompts: d.prompts || [], requests: d.requests || [], note: d.note || "" };
       }

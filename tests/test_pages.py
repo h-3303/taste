@@ -300,3 +300,40 @@ def test_refine_page_escapes_and_no_person_specific_text(tmp_path):
     html = render_round(run, "refine", "Shop", tmp_path / "r").read_text(encoding="utf-8")
     assert "<script>x</script>" not in html
     assert not re.search(r"\bh\b(?!=)", re.sub(r"<[^>]+>", " ", html.split("<script>")[0]))
+
+
+def _review_run(tmp_path):
+    run = Run(tmp_path / "run")
+    run.write("proposals.json", [
+        {"id": "p1", "section": "Liked traits", "text": "Warm paper grounds", "default": True},
+        {"id": "p2", "section": "Rules", "text": "Never use <script>x</script> gradients", "default": False},
+        {"id": "p3", "section": "Liked traits", "text": "Tight grotesk labels", "default": True},
+    ])
+    return run
+
+
+def test_review_page_groups_proposals_with_default_ticks(tmp_path):
+    run = _review_run(tmp_path)
+    out = tmp_path / "rv"
+    html = render_round(run, "review", "Shop", out).read_text(encoding="utf-8")
+    for pid in ("p1", "p2", "p3"):
+        assert f'data-id="{pid}"' in html
+    assert 'data-votes="pick"' in html and "rounds/review-1" in html
+    assert re.search(r'data-id="p1"[^>]*data-default="1"', html)
+    assert re.search(r'data-id="p2"[^>]*data-default="0"', html)
+    assert html.index("Liked traits") < html.index('data-id="p3"') < html.index("Rules") < html.index('data-id="p2"')
+    assert len(re.findall(r'<textarea[^>]*class="item-note"', html)) == 3
+    assert "dataset.default" in html and 'id="page-note"' in html
+    assert "<script>x</script>" not in html
+    assert not re.search(r"\bh\b(?!=)", re.sub(r"<[^>]+>", " ", html.split("<script>")[0]))
+    assert rounds.load(run, "review", 1).shown == ["p1", "p3", "p2"]
+
+
+def test_review_page_needs_valid_proposals(tmp_path, capsys):
+    run = Run(tmp_path / "run")
+    assert main(["round", "render", str(run.path), "review", "--title", "Shop", "--out", str(tmp_path / "r")]) == 1
+    assert "proposals.json" in capsys.readouterr().err
+    run.write("proposals.json", [{"id": "p1", "section": "Projects", "text": "x", "default": True}])
+    assert main(["round", "render", str(run.path), "review", "--title", "Shop", "--out", str(tmp_path / "r")]) == 1
+    assert "Projects" in capsys.readouterr().err
+    assert not (run.path / "rounds" / "review-1.json").exists()

@@ -11,6 +11,7 @@ _USAGE = """usage: taste <command> [args]
 moodboards:  new gather inbox-add scout keep sheet palette validate canvas brief survey-add survey-keep survey-canvas
 rounds:       round render RUN STAGE --title T --out DIR [--repeat-of N] | round ingest RUN STAGE N DOC | round steer RUN | round final RUN COMMENTS | gaps RUN | combine RUN --from-round N
 refine:      refine check RUN N | refine apply RUN N [--project DIR]   (round render RUN refine shows pass N)
+profile:     profile show | profile project RUN [--project DIR] | profile apply RUN N   (round render RUN review shows proposals.json)
 pages:       library-page --out DIR [--query Q] [--kind K] [--no-fetch]
 additions:   add TARGET [--kind K] [--tag T ...] [--language L]
 library:     lib search|show|collections|status|sources|pluck|cache|collection|add
@@ -269,6 +270,32 @@ def _cmd_refine(rest: list[str]) -> int:
     return 0
 
 
+def _cmd_profile(rest: list[str]) -> int:
+    from . import profile
+    from .paths import profile_path
+    ap = argparse.ArgumentParser(prog="taste profile")
+    ap.add_argument("action", choices=("show", "project", "apply")); ap.add_argument("run", nargs="?")
+    ap.add_argument("n", nargs="?", type=int); ap.add_argument("--project")
+    a = ap.parse_args(rest)
+    try:
+        if a.action == "show":
+            p = profile_path()
+            print(p.read_text(encoding="utf-8").rstrip("\n") if p.is_file() else f"no profile yet ({p})")
+        elif a.run is None or (a.action == "apply" and a.n is None):
+            print("usage: taste profile show | project RUN [--project DIR] | apply RUN N", file=sys.stderr)
+            return 2
+        elif a.action == "project":
+            print(profile.write_project_taste(a.run, Path(a.project) if a.project else None))
+        else:
+            res = profile.apply_review(a.run, a.n, profile_path())
+            k = sum(len(v) for v in res["added"].values())
+            print(f"{res['path']}: {k} new entr{'y' if k == 1 else 'ies'}")
+    except (ValueError, OSError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_gaps(rest: list[str]) -> int:
     from . import rounds
     from .boards.run import Run
@@ -280,7 +307,7 @@ def _cmd_gaps(rest: list[str]) -> int:
     return 0
 
 
-_COMMANDS = {"round": _cmd_round, "refine": _cmd_refine, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
+_COMMANDS = {"round": _cmd_round, "refine": _cmd_refine, "profile": _cmd_profile, "combine": _cmd_combine, "library-page": _cmd_library_page, "gaps": _cmd_gaps, "add": _cmd_add, "lib": _cmd_lib, "sync": _cmd_sync, "maintainer": _cmd_maintainer, "seed": _cmd_seed,
              "connect": _cmd_connect, "disconnect": _cmd_disconnect, "connectors": _cmd_connectors}
 
 

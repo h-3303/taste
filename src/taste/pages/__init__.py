@@ -12,7 +12,7 @@ from ..boards.run import Run, clean_text
 env = Environment(loader=PackageLoader("taste.pages"), autoescape=True)
 
 PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2", "directions": "directions.html.j2",
-         "refine": "refine.html.j2"}
+         "refine": "refine.html.j2", "review": "review.html.j2"}
 NEGATIVE = ("dislike", "drop")
 LIBRARY_DOC = "library/current"
 
@@ -52,6 +52,8 @@ def render_round(run, stage: str, title: str, out_dir: Path, repeat_of: int | No
         return _render_directions(run, stage, title, Path(out_dir), repeat_of)
     if stage == "refine":
         return _render_refine(run, stage, title, Path(out_dir), repeat_of)
+    if stage == "review":
+        return _render_review(run, stage, title, Path(out_dir), repeat_of)
     from ..boards import survey
     items = survey.load(run.path)
     if not items:
@@ -132,6 +134,22 @@ def _render_refine(run: Run, stage: str, title: str, out_dir: Path, repeat_of: i
     return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), layers=layers, items=[],
                   kind=doc["kind"], tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
                   repeat_of=repeat_of, n=r.n)
+
+
+def _render_review(run: Run, stage: str, title: str, out_dir: Path, repeat_of: int | None) -> Path:
+    """One tick (`pick`) per proposal for the general profile, grouped by section, pre-set from its default."""
+    from .. import profile
+    proposals = profile.load_proposals(run)
+    out_dir = _fresh(out_dir)
+    groups = []
+    for sec in profile.PROPOSAL_SECTIONS:
+        props = [{"id": p["id"], "text": clean_text(p["text"], profile.LIMIT, markdown=False),
+                  "default": bool(p["default"])} for p in proposals if p["section"] == sec]
+        if props:
+            groups.append({"name": sec, "proposals": props})
+    r = rounds.start(run, stage, [it["id"] for g in groups for it in g["proposals"]], repeat_of=repeat_of)
+    return _write(out_dir, PAGES[stage], {}, title=clean_text(title, markdown=False), groups=groups, items=[],
+                  tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}", repeat_of=repeat_of, n=r.n)
 
 
 def render_library(conn, out_dir: Path, query: str = "", kind: str | None = None, fetch=None,

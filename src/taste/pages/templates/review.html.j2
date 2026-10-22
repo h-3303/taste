@@ -1,0 +1,78 @@
+{% extends "_base.html.j2" %}
+{% set HINTS = {"Liked traits": "qualities to look for in every project", "Disliked traits": "qualities to keep out", "Rules": "lasting do's and don'ts", "References": "work to keep coming back to"} %}
+{% block title %}{{ title }} profile review{% endblock %}
+{% block heading %}{{ title }}: what goes into your taste profile{% endblock %}
+{% block intro %}<p>These are proposed additions to your general taste profile, the one every future project starts from. Ticked lines are added when you confirm; unticked lines are left out entirely. Untick anything that only applied to this project, tick anything you want kept, and add a note to reword a line.</p>{% endblock %}
+{% block note_hint %}Anything the profile should say that isn't listed{% endblock %}
+{% block style %}
+/* Layout: one band per profile section, its proposals as rows with a tick on the right; a confirm bar under the bands. */
+:root{--tick:var(--pos);--band:#ebe7df}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--band:#1a1917}}
+:root[data-theme="dark"]{--band:#1a1917}
+header .bar[aria-label="Filter"]{display:none}
+main.wall{columns:auto;display:flex;flex-direction:column;gap:18px;max-width:900px}
+header,.page-foot,.confirm{max-width:900px}
+.group{display:flex;flex-direction:column;gap:10px;padding:16px;background:var(--band);border-radius:6px;min-width:0}
+.group h2{margin:0;font-size:19px;font-weight:650;text-wrap:balance}
+.group h2 small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}
+.rows{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.prop.item{margin:0;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"text tick" "note note";border-width:2px}
+.prop .meta{grid-area:text;padding:10px 12px;justify-content:center}
+.prop .meta b{font-weight:500;font-size:15px}
+.prop .meta code{font:11px ui-monospace,monospace;color:var(--muted)}
+.prop .votes{grid-area:tick;border-top:0;border-left:1px solid var(--line)}
+.prop .votes button{min-width:118px;padding:10px 14px}
+.prop .votes button[aria-pressed="true"]{background:var(--tick);color:var(--card)!important}
+.prop .extra{grid-area:note}
+.prop .more{display:none}
+.prop[data-tone=""] .meta b{color:var(--muted)}
+.confirm{margin:18px auto 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.confirm button{padding:10px 18px;border:0;border-radius:4px;background:var(--ink);color:var(--card);font:inherit;font-weight:600;cursor:pointer}
+.confirm span{color:var(--muted);font-size:14px;flex:1;min-width:0}
+@media (max-width:560px){
+  .group{padding:12px}
+  .prop.item{grid-template-columns:1fr;grid-template-areas:"text" "tick" "note"}
+  .prop .votes{border-left:0;border-top:1px solid var(--line)}
+}
+{% endblock %}
+{% block wall %}
+{% for g in groups %}
+  <section class="group" aria-labelledby="h-{{ loop.index }}">
+    <h2 id="h-{{ loop.index }}">{{ g.name }}<small>{{ HINTS.get(g.name, "") }}</small></h2>
+    <ul class="rows">
+    {% for it in g.proposals %}
+      <li class="item prop" id="{{ it.id }}" data-id="{{ it.id }}" data-default="{{ 1 if it.default else 0 }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+        <div class="meta"><b>{{ it.text }}</b><code>{{ it.id }}</code></div>
+        <div class="votes">
+          {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="Add to profile: {{ it.text }}">Add</button>{% endfor %}
+        </div>
+        <div class="extra">
+          <textarea class="item-note" id="note-{{ it.id }}" rows="1" placeholder="Note, e.g. a better wording" aria-label="Note on {{ it.text }}"></textarea>
+          <button type="button" class="more" aria-pressed="false" tabindex="-1" aria-hidden="true">More like this</button>
+        </div>
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+{% endfor %}
+{% endblock %}
+{% block after_wall %}
+<div class="confirm">
+  <button type="button" id="confirm">Confirm these choices</button>
+  <span id="confirm-hint">Changes save as you go. If the ticks are right as they stand, confirm them here.</span>
+</div>
+{% endblock %}
+{% block script %}
+  /* a fresh page starts from each proposal's default tick; those ticks are saved with the first save */
+  if (!restored) cards.forEach(el => { if (el.dataset.default === "1") put(el.dataset.id, { ...get(el.dataset.id), vote: "pick" }); });
+  const confirmBtn = document.getElementById("confirm");
+  hooks.push(() => {
+    const ticked = cards.filter(el => get(el.dataset.id).vote === "pick").length;
+    count.textContent = `${ticked} of ${cards.length} line${cards.length === 1 ? "" : "s"} ticked`;
+    cards.forEach(el => el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => {
+      b.textContent = b.getAttribute("aria-pressed") === "true" ? "✓ Added" : "Add";
+    }));
+  });
+  if (!ref) confirmBtn.disabled = true;
+  confirmBtn.addEventListener("click", async () => { await save(); if (ref) document.getElementById("confirm-hint").textContent = "Confirmed. Tell Claude Code to apply the review."; });
+{% endblock %}
