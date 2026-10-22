@@ -41,6 +41,16 @@ def _download(url: str, dest: Path) -> Path:
     return Http().download(url, dest)
 
 
+def _parse(render, page, parse, notes) -> list[str]:
+    """A page that fails to render is a note, not a crash: the other gallery can still supply images."""
+    from taste.render import RenderError
+    try:
+        return parse(render(page))
+    except RenderError as e:
+        notes.append(f"render failed {page}: {e}")
+        return []
+
+
 def scout(run_dir: Path, style: str, cosmos: str | None, designspiration: str | None, limit: int = 30,
           render=render_page, download=_download) -> dict:
     """Search Cosmos and/or Designspiration for one style; Designspiration also covers a Cosmos page that comes back empty."""
@@ -53,14 +63,14 @@ def scout(run_dir: Path, style: str, cosmos: str | None, designspiration: str | 
     notes, found = [], []
     if cosmos:
         page = COSMOS.format(q=quote(cosmos))
-        urls = parse_cosmos(render(page))
+        urls = _parse(render, page, parse_cosmos, notes)
         if urls:
             found += [(u, page, "Cosmos") for u in urls]
         else:
             notes.append(f"Cosmos returned nothing for {cosmos!r} (it throttles repeated searches)")
     if designspiration:
         page = DESIGNSPIRATION.format(q=quote(designspiration))
-        urls = parse_designspiration(render(page))
+        urls = _parse(render, page, parse_designspiration, notes)
         found += [(u, page, "Designspiration") for u in urls]
         if not urls:
             notes.append(f"Designspiration returned nothing for {designspiration!r}")

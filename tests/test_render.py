@@ -233,3 +233,46 @@ def test_obey_robots_false_skips_check():
     assert f.render("https://x.test/a", obey_robots=False)
     assert hits == []
     f.close()
+
+
+class _Page:
+    def goto(self, *a, **k):
+        from playwright.sync_api import TimeoutError as PwTimeout
+        raise PwTimeout("Timeout 30000ms exceeded.\nlog line")
+
+
+class _Browser:
+    def new_page(self, **k):
+        return _Page()
+
+
+def _broken_playwright(monkeypatch):
+    from contextlib import contextmanager
+    @contextmanager
+    def browser(self):
+        yield _Browser()
+    monkeypatch.setattr(render.PlaywrightRenderer, "browser", browser)
+
+
+def test_playwright_timeout_becomes_render_error(monkeypatch, tmp_path):
+    _broken_playwright(monkeypatch)
+    r = render.PlaywrightRenderer()
+    with pytest.raises(render.RenderError, match="Timeout 30000ms"):
+        r.html("https://x.test")
+    with pytest.raises(render.RenderError):
+        r.screenshot("https://x.test", tmp_path / "s.png")
+
+
+def test_goto_timeout_surfaces_as_fetch_error(monkeypatch):
+    _broken_playwright(monkeypatch)
+    f = fetch.Fetcher(renderer=render.PlaywrightRenderer(), limiter=quick(), client=web())
+    with pytest.raises(fetch.FetchError, match="Timeout"):
+        f.render("https://x.test/slow")
+    f.close()
+
+
+def test_scout_records_a_failed_render_and_carries_on(monkeypatch, tmp_path):
+    def render_fn(url):
+        raise render.RenderError("navigation timed out")
+    res = scout.scout(tmp_path, "2", cosmos="a", designspiration=None, render=render_fn, download=lambda u, d: d)
+    assert res["items"] == [] and any("navigation timed out" in n for n in res["notes"])

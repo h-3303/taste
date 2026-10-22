@@ -48,22 +48,30 @@ class PlaywrightRenderer:
                 browser.close()
 
     def html(self, url: str, wait: int = 6, stealth: bool = False, **_) -> str:
+        from playwright.sync_api import Error as PwError   # TimeoutError subclasses Error
         with self.browser() as browser:
-            page = browser.new_page(viewport=self.viewport)
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(wait * 1000)
-            page.mouse.wheel(0, 2500)
-            page.wait_for_timeout(min(wait * 1000, 2500))
-            return page.content()
+            try:
+                page = browser.new_page(viewport=self.viewport)
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(wait * 1000)
+                page.mouse.wheel(0, 2500)
+                page.wait_for_timeout(min(wait * 1000, 2500))
+                return page.content()
+            except PwError as e:
+                raise RenderError(f"playwright {url}: {str(e).splitlines()[0]}") from e
 
     def screenshot(self, url: str, dest: Path, wait: int = 6) -> Path:
         dest = Path(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
+        from playwright.sync_api import Error as PwError
         with self.browser() as browser:
-            page = browser.new_page(viewport=self.viewport)
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(wait * 1000)
-            page.screenshot(path=str(dest))
+            try:
+                page = browser.new_page(viewport=self.viewport)
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(wait * 1000)
+                page.screenshot(path=str(dest))
+            except PwError as e:
+                raise RenderError(f"playwright {url}: {str(e).splitlines()[0]}") from e
         return dest
 
 
