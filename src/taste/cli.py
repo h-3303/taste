@@ -141,15 +141,23 @@ def _cmd_add(rest: list[str]) -> int:
     ap.add_argument("target"); ap.add_argument("--kind"); ap.add_argument("--tag", action="append", default=[])
     ap.add_argument("--language")
     a = ap.parse_args(rest)
+    import sqlite3
     from . import additions
     from .library import db, fetch, paths
-    paths.ensure_dirs()
-    conn = db.connect(paths.db_path())
+    from .render import RendererMissing
     try:
+        paths.ensure_dirs()
+        conn = db.connect(paths.db_path())
         ids = additions.add(conn, a.target, kind=a.kind, tags=a.tag, language=a.language)
     except (ValueError, fetch.FetchError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    except RendererMissing as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    except (OSError, sqlite3.Error) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     print(f"added {len(ids)} item(s) to mine/additions")
     return 0
 

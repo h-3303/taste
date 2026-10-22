@@ -84,3 +84,29 @@ def test_cli_add_exit_codes(env, tmp_path, capsys):
     bad = tmp_path / "t.xyz"; bad.write_bytes(b"x")
     assert cli.main(["add", str(bad)]) == 1
     assert cli.main(["add", "https://are.na/block/2"]) == 1
+
+
+def test_cli_renderer_missing_exits_2(env, monkeypatch, capsys):
+    from taste import render
+
+    def boom():
+        raise render.RendererMissing()
+    monkeypatch.setattr(render, "get_renderer", boom)
+    assert cli.main(["add", "https://ex.test/page"]) == 2
+    assert "Chromium is missing" in capsys.readouterr().err
+
+
+def test_cli_data_dir_failure_exits_2(tmp_path, monkeypatch, capsys):
+    blocker = tmp_path / "file"; blocker.write_text("x")
+    monkeypatch.setenv("TASTE_DATA", str(blocker / "sub"))
+    assert cli.main(["add", str(png(tmp_path / "a.png"))]) == 2
+    assert "error" in capsys.readouterr().err
+
+
+def test_corrupt_image_is_valueerror_and_stores_nothing(env, tmp_path, capsys):
+    bad = tmp_path / "bad.png"; bad.write_text("not an image")
+    with pytest.raises(ValueError, match="cannot thumbnail"):
+        additions.add(env, str(bad))
+    assert env.execute("select count(*) from items").fetchone()[0] == 0
+    assert not list((paths.thumbs_dir()).glob("*.jpg"))
+    assert cli.main(["add", str(bad)]) == 1

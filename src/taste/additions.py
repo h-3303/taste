@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+from PIL import UnidentifiedImageError
+
 from . import paths as taste_paths
 from .library import db, fetch as _fetch, paths, thumbs
 from .library.models import CollectionDraft, ItemDraft, SourceInfo
@@ -49,8 +51,10 @@ def _one(conn, src: str, coll_id: str, kind, tags, language, fetch, now: str) ->
                 thumbs.specimen(tmp, Path(name).stem, tthumb)
             else:
                 _, h = thumbs.make_thumb(tmp, tthumb)
-        except OSError:
-            raise
+        except (OSError, ValueError) as e:
+            if isinstance(e, OSError) and not isinstance(e, UnidentifiedImageError):
+                raise   # real filesystem errors propagate
+            raise ValueError(f"cannot thumbnail {src}: {e}") from e
         except Exception as e:
             raise ValueError(f"cannot thumbnail {src}: {e}") from e
         meta = {"added_by": "taste add", "origin": src, "private": True}
