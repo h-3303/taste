@@ -115,3 +115,43 @@ def test_new_refuses_empty_library(tmp_path, monkeypatch, capsys):
     assert cli.main(["new", "demo"]) == 1
     assert "Your library is empty: run `taste seed install` first (or `taste add` your own)" in capsys.readouterr().err
     assert not (tmp_path / "data" / "runs").exists() or not list((tmp_path / "data" / "runs").iterdir())
+
+
+def test_link_rows_are_scrubbed(tmp_path, lib):
+    meta = {"origin": "/home/x/.taste/a.svg", "code": "<svg>scraped</svg>", "css": "a{}", "path": "/p", "file": "/f",
+            "images": ["https://ok.test/1.jpg"], "reference_images": ["https://images.are.na/x.jpg"],
+            "nested": {"refs": ["https://images.are.na/x.jpg", "/home/x/y.png", "data:image/png;base64,AAA",
+                                "https://fine.test/z"], "local": "/etc/passwd"},
+            "palette": "warm"}
+    add(lib.conn, "curated", "cur:k1", None, meta=meta, asset="/home/x/.taste/cache/curated/k1.svg")
+    lib.conn.execute("UPDATE items SET hash='ffee', search_text='origin /home/x/.taste/a.svg' WHERE key='cur:k1'")
+    add(lib.conn, "cosmos", "cos:2", None, asset="https://images.are.na/y.jpg")
+    add(lib.conn, "cosmos", "cos:3", None, asset="https://cdn.test/ok.jpg")
+    lib.conn.commit()
+    seed.build_seed(lib.conn, lib.thumbs, tmp_path / "s.zip")
+    z = zipfile.ZipFile(tmp_path / "s.zip")
+    c = sqlite3.connect(extract(z, "seed.db"))
+    dump = "\n".join(str(v) for r in c.execute("select * from items where source != 'polyhaven'") for v in r)
+    for bad in ("/home/x", "scraped", "are.na", "/etc/passwd", "data:image", "ffee", "a{}"):
+        assert bad not in dump, bad
+    r = c.execute("select asset_url, hash, meta from items where key='cur:k1'").fetchone()
+    assert r[0] == "" and r[1] is None
+    m = json.loads(r[2])
+    assert m["shipping"] == "link" and m["palette"] == "warm" and m["nested"] == {"refs": ["https://fine.test/z"]}
+    assert c.execute("select asset_url from items where key='cos:3'").fetchone()[0] == "https://cdn.test/ok.jpg"
+    assert c.execute("select 1 from items where key='cos:2'").fetchone() is None   # banned asset: never
+    assert c.execute("select count(*) from items_fts where items_fts match 'warm'").fetchone()[0] == 1
+
+
+def test_install_normalises_crafted_thumb(tmp_path):
+    src = tmp_path / "seed.db"
+    c = db.connect(src)
+    c.execute("INSERT INTO sources(slug,title,tier,policy) VALUES ('polyhaven','p',1,'sync')")
+    c.execute("INSERT INTO items(id,key,source,kind,title,thumb) VALUES ('a','k:a','polyhaven','image','t','/etc/x')")
+    c.commit(); c.close()
+    with zipfile.ZipFile(tmp_path / "s.zip", "w") as z:
+        z.write(src, "seed.db"); z.writestr("thumbs/x", b"1")
+    conn = db.connect(tmp_path / "u.db")
+    seed.install_seed(tmp_path / "s.zip", conn, tmp_path / "th")
+    assert conn.execute("select thumb from items where key='k:a'").fetchone()[0] == "thumbs/x"
+    assert (tmp_path / "th" / "x").read_bytes() == b"1"

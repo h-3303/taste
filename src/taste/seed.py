@@ -8,12 +8,35 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .library import db
+from .library.fetch import banned
 from .licences import classify
 
 SEED_URL = "https://github.com/h-3303/taste/releases/latest/download/taste-seed.zip"
 EMPTY_MESSAGE = "Your library is empty: run `taste seed install` first (or `taste add` your own)"
 _ITEM_COLS = ("id", "key", "source", "kind", "title", "page_url", "asset_url", "thumb", "tags", "meta",
               "license", "hash", "search_text", "added_at", "last_seen")
+
+
+_DROP_META = {"code", "css", "origin", "images", "reference_images", "path", "file"}
+
+
+def _is_http(v: str) -> bool:
+    return v.startswith(("http://", "https://"))
+
+
+def _clean(v):
+    """Scrub a meta value: drop local paths, data: URIs and banned hosts (recursively); None means drop."""
+    if isinstance(v, str):
+        if v.startswith("data:") or (v.startswith(("/", "~", "file:")) or v[1:3] in (":\\", ":/")):
+            return None
+        if _is_http(v) and banned(v):
+            return None
+        return v
+    if isinstance(v, list):
+        return [c for c in (_clean(x) for x in v) if c is not None]
+    if isinstance(v, dict):
+        return {k: c for k, x in v.items() if k not in _DROP_META and (c := _clean(x)) is not None}
+    return v
 
 
 @dataclass
@@ -44,6 +67,7 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
         seed_path = Path(tmp) / "seed.db"
         sdb = db.connect(seed_path)
         thumb_files: list[Path] = []
+        link_rows: list[dict] = []
         for r in conn.execute("SELECT * FROM items ORDER BY rowid"):
             meta = json.loads(r["meta"] or "{}")
             how = classify(r["source"], r["license"] or "", r["page_url"] or "", r["asset_url"] or "")
@@ -61,9 +85,15 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
             else:
                 links += 1
                 row["thumb"] = None
+                meta = _clean(meta)
                 meta["shipping"] = "link"
+                au = row["asset_url"] or ""
+                row["asset_url"] = au if _is_http(au) and not banned(au) else ""
+                row["hash"] = None
                 row["meta"] = json.dumps(meta, ensure_ascii=False)
             shipped[r["id"]] = how
+            if how == "link":
+                link_rows.append(row)
             sdb.execute(f"INSERT INTO items({','.join(_ITEM_COLS)}) VALUES ({','.join('?' * len(_ITEM_COLS))})",
                         [row[c] for c in _ITEM_COLS])
         for ic in conn.execute("SELECT item, collection FROM item_collections"):
@@ -78,6 +108,9 @@ def build_seed(conn, thumbs_dir: Path, out: Path) -> SeedReport:
             if s["slug"] in sources:
                 d = dict(s)
                 sdb.execute(f"INSERT INTO sources({','.join(d)}) VALUES ({','.join('?' * len(d))})", list(d.values()))
+        for row in link_rows:
+            st = db._search_text(sdb, row["id"], row["source"], row["kind"], json.loads(row["meta"]))
+            sdb.execute("UPDATE items SET search_text = ? WHERE id = ?", (st, row["id"]))
         sdb.commit()
         sdb.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         sdb.close()
@@ -112,6 +145,7 @@ def install_seed(archive: Path, conn, thumbs_dir: Path) -> int:
                 continue
             thumb = r["thumb"]
             if thumb and f"thumbs/{Path(thumb).name}" in z.namelist():
+                thumb = f"thumbs/{Path(thumb).name}"
                 dest = thumbs_dir / Path(thumb).name
                 if not dest.exists():
                     dest.write_bytes(z.read(f"thumbs/{Path(thumb).name}"))
