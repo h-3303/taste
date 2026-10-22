@@ -20,6 +20,7 @@ class StalePage(ValueError):
 class ItemState:
     vote: str | None
     note: str = ""
+    where: str = ""
 
 
 @dataclass
@@ -99,7 +100,9 @@ def _note(text) -> str:
 def ingest(run: Run, stage: str, n: int, doc: dict) -> Round:
     r = load(run, stage, n)
     at = doc.get("at")
-    if at and _when(at) < _when(r.rendered_at):
+    if not at:
+        raise StalePage("This page saved no timestamp: ask to vote again")
+    if _when(at) < _when(r.rendered_at):
         raise StalePage(STALE)
     allowed = VOTES[stage]
     r.items = {}
@@ -126,9 +129,20 @@ def ingest(run: Run, stage: str, n: int, doc: dict) -> Round:
 def record_final(run: Run, comments: list[dict]) -> Round:
     """The final stage lives on a Design canvas: its comments become pins in the next `final` pass."""
     demo = run.read("published.json").get("demo_at") if run.has("published.json") else None
-    ids = [f"pin-{k}" for k in range(1, len(comments) + 1)]
+    seen = {(s.note, s.where) for p in all_rounds(run, "final") for s in p.items.values()}
+    fresh = []
+    for c in comments:
+        key = (_note(c.get("text")), clean_text(c.get("anchor"), limit=200, markdown=False))
+        if key not in seen:
+            seen.add(key)
+            fresh.append(key)
+    if not fresh:
+        prior = all_rounds(run, "final")
+        if prior:
+            return prior[-1]
+    ids = [f"pin-{k}" for k in range(1, len(fresh) + 1)]
     r = start(run, "final", ids, rendered_at=demo or _now())
-    r.items = {i: ItemState(None, _note(c.get("text"))) for i, c in zip(ids, comments)}
+    r.items = {i: ItemState(None, text, where) for i, (text, where) in zip(ids, fresh)}
     r.at = _now()
     return _save(run, r)
 
@@ -153,9 +167,9 @@ def steering(run: Run) -> dict:
         for iid in r.shown:
             s = r.items.get(iid)
             if s and s.note:
-                out["notes"].append({"stage": r.stage, "n": r.n, "id": iid, "text": s.note})
+                out["notes"].append({"stage": r.stage, "n": r.n, "id": iid, "text": s.note, "where": s.where})
         if r.note:
-            out["notes"].append({"stage": r.stage, "n": r.n, "id": None, "text": r.note})
+            out["notes"].append({"stage": r.stage, "n": r.n, "id": None, "text": r.note, "where": ""})
         out["combos"] += r.combos
         out["prompts"] += r.prompts
         out["requests"] += r.requests
@@ -184,5 +198,7 @@ def gaps(run: Run) -> list[str]:
         for img in run.read("pool.json").get("images", []):
             if img.get("style") is not None:
                 counts[str(img["style"])] = counts.get(str(img["style"]), 0) + 1
-        out += [f"Direction {d} is thin ({n} images)" for d, n in sorted(counts.items()) if n < THIN]
+        known = [str(d["id"]) for d in run.read("directions.json").get("directions", [])] \
+            if run.has("directions.json") else sorted(counts)
+        out += [f"Direction {d} is thin ({counts.get(d, 0)} images)" for d in known if counts.get(d, 0) < THIN]
     return out

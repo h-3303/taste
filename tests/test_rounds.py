@@ -147,3 +147,34 @@ def test_cli_round_ingest_steer_final_gaps(run, tmp_path, capsys):
     c.write_text(json.dumps([{"text": "bigger", "anchor": "a"}]))
     assert cli.main(["round", "final", str(run.path), str(c)]) == 0
     assert cli.main(["gaps", str(run.path)]) == 0
+
+
+def test_gaps_zero_image_direction_from_directions_json(run):
+    run.write("directions.json", {"directions": [{"id": "1"}, {"id": "2"}, {"id": "3"}]})
+    run.write("pool.json", {"images": [{"id": f"i{k}", "style": "1"} for k in range(9)]
+                            + [{"id": f"j{k}", "style": "2"} for k in range(3)]})
+    assert rounds.gaps(run) == ["Direction 2 is thin (3 images)", "Direction 3 is thin (0 images)"]
+
+
+def test_doc_without_at_refused(run):
+    rounds.start(run, "broad", ["s001"])
+    with pytest.raises(rounds.StalePage, match="no timestamp"):
+        rounds.ingest(run, "broad", 1, {"items": {"s001": {"vote": "like", "note": ""}}})
+
+
+def test_final_anchor_kept_as_where(run):
+    rounds.record_final(run, [{"text": "logo smaller", "anchor": "header"}, {"text": "x", "anchor": ""}])
+    assert rounds.load(run, "final", 1).items["pin-1"].where == "header"
+    notes = rounds.steering(run)["notes"]
+    assert [n["where"] for n in notes] == ["header", ""]
+    assert notes[0]["text"] == "logo smaller"
+
+
+def test_record_final_rerun_is_deduped(run):
+    c = [{"text": "logo smaller", "anchor": "header"}]
+    a = rounds.record_final(run, c)
+    b = rounds.record_final(run, c)
+    assert (a.n, b.n) == (1, 1) and len(rounds.all_rounds(run, "final")) == 1
+    assert len(rounds.steering(run)["notes"]) == 1
+    d = rounds.record_final(run, c + [{"text": "more air", "anchor": "hero"}])
+    assert d.n == 2 and list(d.items) == ["pin-1"] and d.items["pin-1"].note == "more air"
