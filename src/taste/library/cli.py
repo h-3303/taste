@@ -30,7 +30,7 @@ def _conn():
 def _fetcher():
     if not _obscura():
         raise MissingTool("obscura not found: download the x86_64-linux-stealth release from "
-                          "https://github.com/h4ckf0r0day/obscura/releases into ~/.local/bin or set DLIB_OBSCURA")
+                          "https://github.com/h4ckf0r0day/obscura/releases into ~/.local/bin or enable the obscura connector in config.json")
     return Fetcher()
 
 

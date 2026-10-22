@@ -1,17 +1,14 @@
 import json
-import os
 import re
 import unicodedata
 from datetime import date as Date
 from pathlib import Path
 
+from .. import paths
+
 
 def data_root() -> Path:
-    return Path(os.environ.get("MOODBOARDS_DATA", Path.home() / "moodboards-data"))
-
-
-def vault_root() -> Path:
-    return Path(os.environ.get("MOODBOARDS_VAULT", Path.home() / "Documents" / "moiraidigital"))
+    return paths.data_root()
 
 
 def slugify(text: str) -> str:

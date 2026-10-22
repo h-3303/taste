@@ -10,18 +10,17 @@ from .canvas import render_canvas
 from .directions import suggest_palette, validate
 from .models import Candidate
 from .inbox import is_style, take_inbox
-from .library import load_library
 from .pool import build_pool
-from .run import Run, data_root, vault_root
+from .run import Run, data_root
 from .sheet import contact_sheets
-from .vaultmedia import IMAGE_SUFFIXES, vault_media
+from .vaultmedia import IMAGE_SUFFIXES
 
 MIN_POOL = 24
 
 
 def cmd_new(a):
     run = Run.create(a.slug)
-    lib = load_library(vault_root())
+    lib = []
     run.write("library.json", lib)
     print(f"run: {run.path}\nlibrary: {len(lib)} resource notes")
 
@@ -72,9 +71,6 @@ def cmd_gather(a):
             for x in c:
                 x.style = x.style or st["id"]   # an item found for two styles keeps the first
             cands += c; failures += f
-        for x in vault_media(vault_root(), st.get("vault_posts", [])):
-            x.style = st["id"]
-            cands.append(x)
     for st in styles:
         for iid in [*st.get("dlib_ids", []), *(a.dlib or [])]:
             got = dlib_pluck(iid, run.raw / "dlib")

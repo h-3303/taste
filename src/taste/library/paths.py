@@ -1,6 +1,7 @@
-import os
 import shutil
 from pathlib import Path
+
+from .. import config, paths as taste_paths
 
 SAMPLE_COLLECTIONS = 3
 SAMPLE_ITEMS = 24
@@ -8,7 +9,7 @@ BANNED_HOSTS = ("are.na", "artvee.com", "emuseum.ch", "gurafiku.tumblr.com", "de
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("DLIB_DATA", Path.home() / "design-library-data"))
+    return taste_paths.library_dir()
 
 
 def db_path() -> Path:
@@ -39,4 +40,7 @@ def ensure_dirs() -> Path:
 
 
 def obscura_bin() -> str | None:
-    return os.environ.get("DLIB_OBSCURA") or shutil.which("obscura")
+    c = config.connector("obscura")
+    if not c:
+        return None
+    return c.get("bin") or shutil.which("obscura")

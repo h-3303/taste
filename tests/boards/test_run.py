@@ -1,6 +1,6 @@
 import json
 from datetime import date
-from taste.boards.run import Run, slugify, data_root, vault_root
+from taste.boards.run import Run, slugify, data_root
 from taste.boards.models import Candidate
 
 
@@ -31,10 +31,8 @@ def test_write_read_roundtrip(tmp_path):
 
 
 def test_env_roots(monkeypatch, tmp_path):
-    monkeypatch.setenv("MOODBOARDS_DATA", str(tmp_path / "d"))
-    monkeypatch.setenv("MOODBOARDS_VAULT", str(tmp_path / "v"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "d"))
     assert data_root() == tmp_path / "d"
-    assert vault_root() == tmp_path / "v"
 
 
 def test_candidate_fields(tmp_path):

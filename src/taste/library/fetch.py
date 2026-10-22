@@ -147,7 +147,7 @@ class Fetcher:
 
     def _obscura(self, args: list[str], timeout: int) -> subprocess.CompletedProcess:
         if not self.obscura:
-            raise FetchError("obscura not found: install it to ~/.local/bin or set DLIB_OBSCURA")
+            raise FetchError("obscura not found: install it to ~/.local/bin or enable the obscura connector in config.json")
         try:
             return self.runner([self.obscura, *args], capture_output=True, text=True, timeout=timeout + 30)
         except subprocess.TimeoutExpired as e:

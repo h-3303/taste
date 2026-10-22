@@ -19,7 +19,7 @@ class Demo:
 
 @pytest.fixture
 def env(monkeypatch, tmp_path):
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path))
     monkeypatch.setattr(base, "REGISTRY", {"demo": Demo()})
     monkeypatch.setattr(cli, "_fetcher", lambda: FakeFetcher())
     return tmp_path
@@ -58,8 +58,7 @@ def test_show_missing_item(env, capsys):
 
 
 def test_missing_obscura_exits_2(monkeypatch, tmp_path, capsys):
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path))
-    monkeypatch.setenv("DLIB_OBSCURA", str(tmp_path / "nope"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path))
     monkeypatch.setattr("shutil.which", lambda *_: None)
     monkeypatch.setattr(base, "REGISTRY", {"demo": Demo()})
     assert cli.main(["sync"]) == 2
@@ -68,7 +67,7 @@ def test_missing_obscura_exits_2(monkeypatch, tmp_path, capsys):
 
 def test_unusable_data_dir_exits_2(monkeypatch, tmp_path, capsys):
     f = tmp_path / "file"; f.write_text("x")
-    monkeypatch.setenv("DLIB_DATA", str(f / "sub"))
+    monkeypatch.setenv("TASTE_DATA", str(f / "sub"))
     assert cli.main(["status"]) == 2
     assert "data directory not usable" in capsys.readouterr().err
 

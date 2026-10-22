@@ -17,19 +17,19 @@ def test_new_collection_prefixes_and_is_idempotent(tmp_path):
 
 
 def test_add_local_file(tmp_path, monkeypatch):
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     conn = db.connect(tmp_path / "t.db")
     curated.new_collection(conn, "swiss", "image")
     iid = curated.add(conn, "curated/swiss", str(_png(tmp_path / "pic.png")), FakeFetcher(), tmp_path / "thumbs", title="Grid poster",
                       tags=["grid"], page_url="https://x/poster", language="swiss international")
     it = db.get_item(conn, iid)
     assert it["kind"] == "image" and it["thumb"] and it["title"] == "Grid poster" and it["page_url"] == "https://x/poster"
-    assert (tmp_path / "data" / "cache" / "curated" / f"{iid}.png").exists()
+    assert (tmp_path / "data" / "library" / "cache" / "curated" / f"{iid}.png").exists()
     assert db.get_collection(conn, "curated/swiss")["languages"] == ["swiss international"]
 
 
 def test_add_url_and_snippet(tmp_path, monkeypatch):
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     conn = db.connect(tmp_path / "t.db")
     curated.new_collection(conn, "bits", "snippet")
     (tmp_path / "glass.css").write_text(".glass{backdrop-filter:blur(8px)}")
@@ -50,7 +50,7 @@ def test_add_unknown_collection(tmp_path):
 
 def test_bad_image_leaves_no_trace(tmp_path, monkeypatch):
     import pytest
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     conn = db.connect(tmp_path / "t.db")
     curated.new_collection(conn, "swiss", "image")
     bad = tmp_path / "bad.jpg"
@@ -58,14 +58,14 @@ def test_bad_image_leaves_no_trace(tmp_path, monkeypatch):
     with pytest.raises((OSError, ValueError)):
         curated.add(conn, "curated/swiss", str(bad), FakeFetcher(), tmp_path / "thumbs")
     assert db.query_items(conn, None, collection="curated/swiss") == []
-    assert list((tmp_path / "data" / "cache" / "curated").iterdir()) == []
+    assert list((tmp_path / "data" / "library" / "cache" / "curated").iterdir()) == []
     assert not (tmp_path / "thumbs").exists() or list((tmp_path / "thumbs").iterdir()) == []
 
 
 def test_failed_download_leaves_no_temp(tmp_path, monkeypatch):
     import pytest
     from taste.library.fetch import FetchError
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     conn = db.connect(tmp_path / "t.db")
     curated.new_collection(conn, "swiss", "image")
 
@@ -77,11 +77,11 @@ def test_failed_download_leaves_no_temp(tmp_path, monkeypatch):
     from pathlib import Path
     with pytest.raises(FetchError):
         curated.add(conn, "curated/swiss", "https://x/a.jpg", Boom(), tmp_path / "thumbs")
-    assert not list((tmp_path / "data" / "cache" / "curated").glob("incoming-*"))
+    assert not list((tmp_path / "data" / "library" / "cache" / "curated").glob("incoming-*"))
 
 
 def test_icon_without_rasteriser_gets_no_thumb(tmp_path, monkeypatch):
-    monkeypatch.setenv("DLIB_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("TASTE_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(curated.thumbs, "svg_to_png", lambda svg, dest: None)
     conn = db.connect(tmp_path / "t.db")
     curated.new_collection(conn, "icons", "icon")
