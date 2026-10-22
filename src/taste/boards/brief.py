@@ -20,11 +20,11 @@ def write_brief(directions: dict, pool: dict, images_dir: Path, pick: str, note:
     by_id = {r["id"]: r for r in pool["images"]}
     lines = [
         f"# Design direction: {d['name']}", "",
-        f"Project: {project} · chosen {date.today().isoformat()} via /moodboards", "",
+        f"Project: {project} · chosen {date.today().isoformat()} via /taste", "",
         d["rationale"], "",
     ]
     if note:
-        lines += [f"**h's note:** {note}", ""]
+        lines += [f"**Note:** {note}", ""]
     lines += ["## Palette", ""] + [f"- `{c}`" for c in d["palette"]] + [""]
     lines += ["## Type", "", f"- Display: {d['type']['display']}", f"- Text: {d['type']['text']}", ""]
     lines += ["## Motifs", ""] + [f"- {m}" for m in d["motifs"]] + [""]

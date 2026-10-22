@@ -11,7 +11,7 @@ import httpx
 from .. import render as _render
 from .paths import BANNED_HOSTS
 
-UA = "dlib/0.1 (+h's personal design library; polite, obeys robots.txt)"
+UA = "taste/0.1 (+https://github.com/h-3303/taste; polite, obeys robots.txt)"
 CHALLENGE_TITLES = ("Just a moment", "Attention Required! | Cloudflare", "Access Denied", "Vercel Security Checkpoint")
 _TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.S | re.I)
 

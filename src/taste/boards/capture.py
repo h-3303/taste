@@ -10,7 +10,7 @@ from taste.render import PlaywrightRenderer
 from .models import Candidate
 from .run import slugify
 
-# These galleries forbid automated access; h brings their images in by hand through the inbox.
+# These galleries forbid automated access; the person brings their images in by hand through the inbox.
 DENY = ("are.na", "artvee.com", "emuseum.ch", "gurafiku.tumblr.com", "designreviewed.com")
 ACCEPT = re.compile(r"^\s*(accept( all)?|agree|i agree|allow all|got it|ok)\s*$", re.I)
 

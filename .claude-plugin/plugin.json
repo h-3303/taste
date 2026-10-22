@@ -1,0 +1,19 @@
+{
+  "name": "taste",
+  "version": "0.1.0",
+  "description": "A taste curator for Claude Code: a broad-to-narrow funnel of picks and notes (images, boards, combinable directions, the real screen, open-ended refine passes) that leaves a taste profile and a design brief any agent can read, with a shipped design library you keep adding to.",
+  "author": {
+    "name": "h-3303"
+  },
+  "homepage": "https://github.com/h-3303/taste",
+  "repository": "https://github.com/h-3303/taste",
+  "keywords": [
+    "design",
+    "taste",
+    "moodboards",
+    "design-direction",
+    "design-library",
+    "inspiration",
+    "artifacts"
+  ]
+}

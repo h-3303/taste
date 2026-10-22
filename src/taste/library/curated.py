@@ -8,7 +8,7 @@ from . import db, paths, thumbs
 from .models import CollectionDraft, ItemDraft, SourceInfo
 from .sources import base
 
-SOURCE = SourceInfo("curated", "Curated by Claude and h", "", 1, policy="manual", notes="dlib add / moodboards keep")
+SOURCE = SourceInfo("curated", "Curated keepers", "", 1, policy="manual", notes="dlib add / moodboards keep")
 KIND_BY_EXT = {".svg": "icon", ".ttf": "font", ".otf": "font", ".woff": "font", ".woff2": "font", ".css": "snippet", ".js": "snippet",
                ".jsx": "snippet", ".tsx": "snippet", ".ts": "snippet", ".glsl": "snippet", ".html": "snippet",
                ".jpg": "image", ".jpeg": "image", ".png": "image", ".webp": "image", ".gif": "image"}

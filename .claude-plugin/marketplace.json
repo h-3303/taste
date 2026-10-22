@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "taste",
+  "description": "taste, a taste curator for Claude Code",
+  "owner": {
+    "name": "h-3303"
+  },
+  "plugins": [
+    {
+      "name": "taste",
+      "description": "Find out what the person likes before designing: survey, boards, combinable directions, a demo on the real screen, refine passes and a two-layer taste profile",
+      "author": {
+        "name": "h-3303"
+      },
+      "source": "./",
+      "category": "design"
+    }
+  ]
+}

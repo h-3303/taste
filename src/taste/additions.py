@@ -1,4 +1,4 @@
-"""`taste add`: put h's own files, folders and links into the library as private `mine` items."""
+"""`taste add`: put the person's own files, folders and links into the library as private `mine` items."""
 import hashlib
 import shutil
 from datetime import datetime, timezone

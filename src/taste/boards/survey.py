@@ -1,4 +1,4 @@
-"""Taste survey: ~100 notable design references h marks like/dislike before any language is proposed."""
+"""Taste survey: ~100 notable design references the person marks like/dislike before any language is proposed."""
 import json
 import shutil
 from pathlib import Path
