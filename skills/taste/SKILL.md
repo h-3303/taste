@@ -71,6 +71,9 @@ When the person says they are done with pass `<n>` of `<stage>`:
    - An empty or missing doc means they have not voted yet: say so and wait.
 3. Act on the page's requests (they are in the record and in `taste round steer <run>`):
    - `add-url`: `taste add <url>` (and for the broad stage also `taste survey-add`, below), then confirm it was added.
+     For boards and directions, also put it on the language it was meant for: `taste inbox-add <style id> "<image
+     url>" --source "<page url>"` (ask which language if the note or item doesn't say), then `taste gather <run>`, and
+     offer it in the next pass.
    - `more-like` on an item or board: search for more of that look (see "Agent search") and offer them in the next pass.
 4. `taste gaps <run>` prints what is thin ("Nothing liked in textures yet", "Direction 3 is thin (5 images)"). Tell
    the person each gap in one line and offer both ways to fill it: you search, or they add their own (paste links
