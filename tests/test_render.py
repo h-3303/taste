@@ -50,7 +50,7 @@ class Fake:
     def __init__(self):
         self.calls = []
 
-    def html(self, url, wait=6, stealth=False):
+    def html(self, url, wait=6, stealth=False, **_):
         self.calls.append(url)
         return f"<html>{url}</html>"
 
@@ -64,9 +64,21 @@ def quick():
     return fetch.RateLimiter(sleep=lambda s: None)
 
 
+def web(robots=None, hits=None):
+    """Client whose robots.txt is `robots` (None = 404)."""
+    import httpx
+    def handler(req):
+        if hits is not None:
+            hits.append(str(req.url))
+        if req.url.path == "/robots.txt":
+            return httpx.Response(404) if robots is None else httpx.Response(200, text=robots)
+        return httpx.Response(200)
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
 def test_fetcher_banned_host_never_reaches_renderer():
     fake = Fake()
-    f = fetch.Fetcher(renderer=fake, limiter=quick())
+    f = fetch.Fetcher(renderer=fake, limiter=quick(), client=web())
     with pytest.raises(fetch.FetchError, match="banned"):
         f.render("https://banned.are.na/x")
     assert fake.calls == []
@@ -75,7 +87,7 @@ def test_fetcher_banned_host_never_reaches_renderer():
 
 def test_fetcher_render_delegates():
     fake = Fake()
-    f = fetch.Fetcher(renderer=fake, limiter=quick())
+    f = fetch.Fetcher(renderer=fake, limiter=quick(), client=web())
     assert f.render("https://x.test/a") == "<html>https://x.test/a</html>"
     f.close()
 
@@ -83,14 +95,14 @@ def test_fetcher_render_delegates():
 def test_fetcher_render_detects_challenge():
     fake = Fake()
     fake.html = lambda url, wait=6, stealth=False: "<html><title>Just a moment...</title></html>"
-    f = fetch.Fetcher(renderer=fake, limiter=quick())
+    f = fetch.Fetcher(renderer=fake, limiter=quick(), client=web())
     with pytest.raises(fetch.Blocked):
         f.render("https://x.test")
     f.close()
 
 
 def test_fetcher_screenshot_delegates(tmp_path):
-    f = fetch.Fetcher(renderer=Fake(), limiter=quick())
+    f = fetch.Fetcher(renderer=Fake(), limiter=quick(), client=web())
     dest = tmp_path / "sub" / "s.png"
     assert f.screenshot("https://x.test", dest) == dest and dest.read_bytes() == b"png"
     f.close()
@@ -109,7 +121,7 @@ def test_fetcher_wraps_render_errors():
     def bad(url, wait=6, stealth=False):
         raise render.RenderError("boom")
     fake.html = bad
-    f = fetch.Fetcher(renderer=fake, limiter=quick())
+    f = fetch.Fetcher(renderer=fake, limiter=quick(), client=web())
     with pytest.raises(fetch.FetchError, match="boom"):
         f.render("https://x.test")
     f.close()
@@ -182,3 +194,42 @@ def test_renderer_missing_maps_to_exit_2(monkeypatch, capsys):
     monkeypatch.setattr(bcli, "cmd_sheet", boom)
     assert bcli.main(["sheet", "x"]) == 2
     assert "Chromium is missing" in capsys.readouterr().out
+
+
+def test_robots_disallow_blocks_render_and_screenshot(tmp_path):
+    fake = Fake()
+    f = fetch.Fetcher(renderer=fake, limiter=quick(), client=web("User-agent: *\nDisallow: /private\n"))
+    with pytest.raises(fetch.FetchError, match="robots"):
+        f.render("https://x.test/private/a")
+    with pytest.raises(fetch.FetchError, match="robots"):
+        f.screenshot("https://x.test/private/a", tmp_path / "s.png")
+    assert fake.calls == [] and not (tmp_path / "s.png").exists()
+    f.close()
+
+
+def test_robots_allowed_path_renders():
+    f = fetch.Fetcher(renderer=Fake(), limiter=quick(), client=web("User-agent: *\nDisallow: /private\n"))
+    assert "x.test/open" in f.render("https://x.test/open")
+    f.close()
+
+
+def test_robots_404_allows_all():
+    f = fetch.Fetcher(renderer=Fake(), limiter=quick(), client=web(None))
+    assert f.render("https://x.test/anything")
+    f.close()
+
+
+def test_robots_fetched_once_per_host():
+    hits = []
+    f = fetch.Fetcher(renderer=Fake(), limiter=quick(), client=web("", hits))
+    f.render("https://x.test/a"); f.render("https://x.test/b"); f.render("https://y.test/a")
+    assert [h for h in hits if h.endswith("robots.txt")] == ["https://x.test/robots.txt", "https://y.test/robots.txt"]
+    f.close()
+
+
+def test_obey_robots_false_skips_check():
+    hits = []
+    f = fetch.Fetcher(renderer=Fake(), limiter=quick(), client=web("User-agent: *\nDisallow: /\n", hits))
+    assert f.render("https://x.test/a", obey_robots=False)
+    assert hits == []
+    f.close()

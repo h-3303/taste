@@ -1,5 +1,6 @@
 import json as _json
 import re
+import urllib.robotparser
 import threading
 import time
 from pathlib import Path
@@ -73,6 +74,8 @@ class Fetcher:
         self.client = client or httpx.Client(timeout=30.0, follow_redirects=True, headers={"User-Agent": UA})
         self.client.event_hooks["request"] = [*self.client.event_hooks.get("request", []), self._on_request]
         self._origin = threading.local()
+        self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+        self._robots_lock = threading.Lock()
 
     @staticmethod
     def _site(url: str) -> str:
@@ -143,6 +146,31 @@ class Fetcher:
         tmp.replace(dest)
         return dest
 
+    def _robots_ok(self, url: str) -> bool:
+        """robots.txt for the URL's origin, fetched once per host through the same client; missing or unreadable means allow."""
+        parts = urlparse(url)
+        origin = f"{parts.scheme}://{parts.netloc}"
+        with self._robots_lock:
+            if origin not in self._robots:
+                rp = None
+                robots_url = origin + "/robots.txt"
+                try:
+                    self._check(robots_url)
+                    r = self.client.get(robots_url)
+                    if r.status_code == 200:
+                        rp = urllib.robotparser.RobotFileParser()
+                        rp.parse(r.text.splitlines())
+                except httpx.HTTPError:
+                    pass
+                self._robots[origin] = rp
+            rp = self._robots[origin]
+        return rp is None or rp.can_fetch(UA, url)
+
+    def _check_render(self, url: str, obey_robots: bool) -> None:
+        self._check(url)
+        if obey_robots and not self._robots_ok(url):
+            raise FetchError(f"robots.txt disallows {url}")
+
     @property
     def renderer(self):
         if self._renderer is None:
@@ -150,7 +178,7 @@ class Fetcher:
         return self._renderer
 
     def render(self, url: str, wait: int = 6, stealth: bool = False, obey_robots: bool = True) -> str:
-        self._check(url)
+        self._check_render(url, obey_robots)
         kw = {} if obey_robots else {"obey_robots": False}   # only Obscura has a robots switch
         try:
             html = self.renderer.html(url, wait=wait, stealth=stealth, **kw)
@@ -160,8 +188,8 @@ class Fetcher:
             raise Blocked(f"{url}: bot challenge")
         return html
 
-    def screenshot(self, url: str, dest: Path, wait: int = 6) -> Path:
-        self._check(url)
+    def screenshot(self, url: str, dest: Path, wait: int = 6, obey_robots: bool = True) -> Path:
+        self._check_render(url, obey_robots)
         try:
             return self.renderer.screenshot(url, Path(dest), wait=wait)
         except _render.RenderError as e:
