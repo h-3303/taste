@@ -68,7 +68,10 @@ When the person says the project's design is settled (or asks to update their pr
 4. **Stop**, then ingest it (`ArtifactData` `get` collection `rounds`, doc_id `review-<n>` into `<run>/page-state`,
    then `taste round ingest <run> review <n> <file>`).
 5. `taste profile apply <run> <n>` adds the ticked proposals and the project's line to the profile (append-only;
-   ticking the same thing twice adds nothing). Show the person `taste profile show`.
+   ticking the same thing twice adds nothing). Show the person `taste profile show`. If it refuses (exit 1) and
+   lists ticked proposals that carry a note, the note asks for other wording: rewrite those lines in
+   `proposals.json` from the notes, render a new review pass (step 3) and apply that pass instead. Nothing is
+   written to the profile until a pass applies cleanly.
 
 The review applies what that page showed (a snapshot taken at render time). To reword a proposal, edit
 `proposals.json` and render a new review pass; editing after rendering changes nothing for the old pass.

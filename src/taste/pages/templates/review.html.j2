@@ -2,7 +2,7 @@
 {% set HINTS = {"Liked traits": "qualities to look for in every project", "Disliked traits": "qualities to keep out", "Rules": "lasting do's and don'ts", "References": "work to keep coming back to"} %}
 {% block title %}{{ title }} profile review{% endblock %}
 {% block heading %}{{ title }}: what goes into your taste profile{% endblock %}
-{% block intro %}<p>These are proposed additions to your general taste profile, the one every future project starts from. Ticked lines are added when you confirm; unticked lines are left out entirely. Untick anything that only applied to this project, tick anything you want kept, and add a note to reword a line.</p>{% endblock %}
+{% block intro %}<p>These are proposed additions to your general taste profile, the one every future project starts from. Ticked lines are added when you confirm; unticked lines are left out entirely. Untick anything that only applied to this project and tick anything you want kept.</p>{% endblock %}
 {% block note_hint %}Anything the profile should say that isn't listed{% endblock %}
 {% block style %}
 /* Layout: one band per profile section, its proposals as rows with a tick on the right; a confirm bar under the bands. */
@@ -47,7 +47,7 @@ header,.page-foot,.confirm{max-width:900px}
           {% for v in votes %}<button type="button" data-vote="{{ v.value }}" data-tone="{{ v.tone }}" aria-pressed="false" aria-label="Add to profile: {{ it.text }}">Add</button>{% endfor %}
         </div>
         <div class="extra">
-          <textarea class="item-note" id="note-{{ it.id }}" rows="1" placeholder="Note, e.g. a better wording" aria-label="Note on {{ it.text }}"></textarea>
+          <textarea class="item-note" id="note-{{ it.id }}" rows="1" placeholder="Note" aria-label="Note on {{ it.text }}"></textarea>
           <button type="button" class="more" aria-pressed="false" tabindex="-1" aria-hidden="true">More like this</button>
         </div>
       </li>

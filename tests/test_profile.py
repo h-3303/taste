@@ -312,3 +312,27 @@ def test_apply_review_is_append_only(run, tmp_path):
     assert new_lines[-1] == f"- {TODAY} shop: Grid zine"
     assert new.startswith("Some preamble I wrote\nbefore any heading.\n")
     assert "- not a bullet" in new and new.count("- Warm paper") == 1
+
+
+def test_apply_review_refuses_ticked_proposals_with_a_note(run, tmp_path, capsys):
+    # a note on a ticked line asks for new wording: apply refuses until the page is rendered again with it
+    _proposals(run)
+    n = _render(run)
+    later = (datetime.now(timezone.utc) + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rounds.ingest(run, "review", n, {"at": later, "items": {
+        "p1": {"vote": "pick", "note": "say textured paper instead"}, "p2": {"vote": None, "note": "irrelevant"}}})
+    out = tmp_path / "profile.md"
+    with pytest.raises(profile.NeedsRewording) as e:
+        profile.apply_review(run, n, out)
+    assert e.value.ids == ["p1"]
+    assert not out.exists()
+    assert main(["profile", "apply", str(run.path), str(n)]) == 1
+    err = capsys.readouterr().err
+    assert "p1" in err and "p2" not in err and "say textured paper instead" in err
+
+
+def test_review_page_does_not_invite_rewording(run):
+    _proposals(run)
+    n = _render(run)
+    html = (run.path / f"page-{n}" / "index.html").read_text(encoding="utf-8")
+    assert "reword" not in html.lower() and "better wording" not in html.lower()

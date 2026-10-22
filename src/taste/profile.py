@@ -16,6 +16,16 @@ _ID = re.compile(r"[A-Za-z0-9_-]{1,40}")
 _REFINE = re.compile(r"^## Refine pass ", re.M)
 
 
+class NeedsRewording(ValueError):
+    """Ticked proposals that carry a note: the note asks for other wording, so the page is rendered again first."""
+
+    def __init__(self, n: int, ticked: list[dict]):
+        self.ids = [p["id"] for p in ticked]
+        lines = "\n".join(f"  {p['id']}: {p['text']!r} (note: {p['note']!r})" for p in ticked)
+        super().__init__(f"review pass {n}: ticked proposals carry a note; rewrite them in proposals.json and "
+                         f"render the review page again (taste round render RUN review), then apply that pass:\n{lines}")
+
+
 def _run(run) -> Run:
     return run if isinstance(run, Run) else Run(run)
 
@@ -242,6 +252,10 @@ def apply_review(run, n: int, profile_path: Path) -> dict:
         raise ValueError(f"no {snapshot_name(n)}: render the review page again (taste round render RUN review)")
     shown = set(r.shown)
     proposals = [p for p in run.read(snapshot_name(n)) if p["id"] in shown]
+    noted = [{**p, "note": s.note} for p in proposals
+             if (s := r.items.get(p["id"])) and s.vote == "pick" and s.note.strip()]
+    if noted:
+        raise NeedsRewording(n, noted)
     project_dir = _project_dir(run)
     d = _picked(run, project_dir)
     name = d["name"] if d else "no direction picked yet"
