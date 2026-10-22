@@ -31,9 +31,14 @@ def parse_designspiration(html: str) -> list[str]:
 
 
 def render_page(url: str, settle_ms: int = 6000) -> str:
-    """Rendered HTML of a search page (both galleries build their grids in script)."""
-    from taste.render import get_renderer
-    return get_renderer().html(url, wait=settle_ms // 1000)
+    """Rendered HTML of a search page (both galleries build their grids in script), through the polite fetcher:
+    banned hosts refused, robots.txt obeyed, paced per host (FetchError otherwise)."""
+    from taste.library import fetch as lfetch
+    f = lfetch.Fetcher()
+    try:
+        return f.render(url, wait=settle_ms // 1000)
+    finally:
+        f.close()
 
 
 def _download(url: str, dest: Path) -> Path:
@@ -43,10 +48,11 @@ def _download(url: str, dest: Path) -> Path:
 
 def _parse(render, page, parse, notes) -> list[str]:
     """A page that fails to render is a note, not a crash: the other gallery can still supply images."""
+    from taste.library.fetch import FetchError
     from taste.render import RenderError
     try:
         return parse(render(page))
-    except RenderError as e:
+    except (RenderError, FetchError) as e:
         notes.append(f"render failed {page}: {e}")
         return []
 

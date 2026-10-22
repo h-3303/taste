@@ -37,11 +37,15 @@ def _shot(s: dict, path: Path) -> Candidate:
     return Candidate("site", path, s["url"], s["note"], s.get("title") or s["note"])
 
 
-def capture_sites(sites: list[dict], dest: Path, idle_timeout_ms: int = 8000,
-                  site_timeout_ms: int = 30000) -> tuple[list[Candidate], list[str]]:
+def capture_sites(sites: list[dict], dest: Path, idle_timeout_ms: int = 8000, site_timeout_ms: int = 30000,
+                  fetcher=None, renderer=None) -> tuple[list[Candidate], list[str]]:
+    """Two screenshots per site. Each site to visit first passes the polite-fetch rule (banned hosts, robots.txt,
+    pacing); a refused one is a failure note, not a visit."""
+    from taste.library.fetch import FetchError, Fetcher
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
     cands, failures, visit = [], [], []
+    own = None
     for s in sites:
         stem = f"site-{slugify(s['note'])}"
         old = [dest / f"{stem}-{i}.png" for i in (1, 2)]
@@ -50,10 +54,19 @@ def capture_sites(sites: list[dict], dest: Path, idle_timeout_ms: int = 8000,
         elif all(p.exists() for p in old):
             cands.extend(_shot(s, p) for p in old)   # captured by an earlier gather
         else:
+            if fetcher is None:
+                fetcher = own = Fetcher()
+            try:
+                fetcher.check_render(s["url"])
+            except FetchError as e:
+                failures.append(f"skipped {s['note']}: {e}")
+                continue
             visit.append(s)
+    if own is not None:
+        own.close()
     if not visit:
         return cands, failures
-    with PlaywrightRenderer().browser() as browser:
+    with (renderer or PlaywrightRenderer()).browser() as browser:
         for s in visit:
             ctx = browser.new_context(viewport={"width": 1440, "height": 900})
             page = ctx.new_page()

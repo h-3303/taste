@@ -173,6 +173,10 @@ class Fetcher:
         if obey_robots and not self._robots_ok(url):
             raise FetchError(f"robots.txt disallows {url}")
 
+    def check_render(self, url: str) -> None:
+        """The rule a render obeys (banned host, robots.txt, pacing), for callers that drive a browser themselves."""
+        self._check_render(url, True)
+
     @property
     def renderer(self):
         if self._renderer is None:
