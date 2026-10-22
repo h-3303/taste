@@ -2,11 +2,17 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from . import db
 from .thumbs import placeholder
 
 
 def contact_sheets(items: list[dict], thumbs_root: Path, out_dir: Path, stem: str = "sheet", per_sheet: int = 35,
-                   cols: int = 5, cell: int = 300) -> list[Path]:
+                   cols: int = 5, cell: int = 300, conn=None, fetch=None, thumbs_dir: Path | None = None) -> list[Path]:
+    if conn is not None and fetch is not None and thumbs_dir is not None:
+        from ..lazythumbs import ensure_item_thumbs   # link rows get their thumbnail on first use; dead ones drop out
+        ensure_item_thumbs(conn, [r["id"] for r in items if not r.get("thumb")], fetch, thumbs_dir)
+        items = [fresh for r in items if (fresh := db.get_item(conn, r["id"])) and not fresh["meta"].get("dead")]
+    items = [r for r in items if not (r.get("meta") or {}).get("dead")]
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob(f"{stem}-*.png"):

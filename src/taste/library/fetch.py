@@ -27,7 +27,9 @@ def is_challenge(html: str) -> bool:
 
 
 class FetchError(Exception):
-    pass
+    def __init__(self, message: str = "", status: int | None = None):
+        super().__init__(message)
+        self.status = status   # HTTP status when the failure was an error response
 
 
 class Blocked(FetchError):
@@ -133,7 +135,7 @@ class Fetcher:
                 if r.status_code == 429:
                     raise Blocked(f"{url}: HTTP 429")
                 if r.status_code >= 400:
-                    raise FetchError(f"{url}: HTTP {r.status_code}")
+                    raise FetchError(f"{url}: HTTP {r.status_code}", status=r.status_code)
                 with open(tmp, "wb") as f:
                     for chunk in r.iter_bytes():
                         f.write(chunk)

@@ -163,7 +163,7 @@ def list_collections(conn, kind=None, source=None, language=None) -> list[dict]:
 
 
 def query_items(conn, fts: str | None, kind=None, source=None, collection=None, language=None, limit=40) -> list[dict]:
-    where, args = [], []
+    where, args = ["COALESCE(json_extract(i.meta, '$.dead'), 0) != 1"], []   # dead links (404/410) never surface
     if kind:
         where.append("i.kind = ?"); args.append(kind)
     if source:

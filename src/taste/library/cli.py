@@ -87,7 +87,11 @@ def cmd_search(a) -> int:
         finally:
             f.close()
         rows = [db.get_item(conn, r["id"]) for r in rows]
-        sheets = sheet_mod.contact_sheets(rows, paths.data_root(), Path(a.sheet))
+        f = _fetcher()
+        try:
+            sheets = sheet_mod.contact_sheets(rows, paths.data_root(), Path(a.sheet), conn=conn, fetch=f, thumbs_dir=paths.thumbs_dir())
+        finally:
+            f.close()
         lines += [f"sheet: {p}" for p in sheets]
         for r in rows:
             r["sheets"] = [str(p) for p in sheets]
