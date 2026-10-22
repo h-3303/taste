@@ -11,7 +11,7 @@ from ..boards.run import Run, clean_text
 
 env = Environment(loader=PackageLoader("taste.pages"), autoescape=True)
 
-PAGES = {"broad": "broad.html.j2"}
+PAGES = {"broad": "broad.html.j2", "boards": "boards.html.j2"}
 NEGATIVE = ("dislike", "drop")
 LIBRARY_DOC = "library/current"
 
@@ -45,6 +45,8 @@ def render_round(run, stage: str, title: str, out_dir: Path, repeat_of: int | No
     if stage not in PAGES:
         raise ValueError(f"stage {stage} has no page yet")
     run = run if isinstance(run, Run) else Run(run)
+    if stage == "boards":
+        return _render_boards(run, stage, title, Path(out_dir), repeat_of)
     from ..boards import survey
     items = survey.load(run.path)
     if not items:
@@ -64,6 +66,20 @@ def render_round(run, stage: str, title: str, out_dir: Path, repeat_of: int | No
     return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), items=cards,
                   tags=sorted({c["tag"] for c in cards if c["tag"]}), votes=_votes(stage),
                   doc=f"rounds/{stage}-{r.n}", repeat_of=repeat_of, n=r.n)
+
+
+def _render_boards(run: Run, stage: str, title: str, out_dir: Path, repeat_of: int | None) -> Path:
+    """One item per board (`d<direction id>`) and per image on it (`<direction id>/<image id>`)."""
+    from ..boards.canvas import build_boards, check_directions
+    directions, pool = run.read("directions.json"), run.read("pool.json")
+    check_directions(directions)
+    out_dir = _fresh(out_dir)
+    boards, files, font_urls = build_boards(directions, pool, run.images, out_dir)
+    shown = [x for b in boards for x in (f"d{b['id']}", *(f"{b['id']}/{it['id']}" for it in b["items"]))]
+    r = rounds.start(run, stage, shown, repeat_of=repeat_of)
+    return _write(out_dir, PAGES[stage], files, title=clean_text(title, markdown=False), boards=boards, items=boards,
+                  font_urls=font_urls, tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}",
+                  repeat_of=repeat_of, n=r.n)
 
 
 def render_library(conn, out_dir: Path, query: str = "", kind: str | None = None, fetch=None,

@@ -1,5 +1,6 @@
 <title>{% block title %}{{ title }}{% endblock %}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+{% block head %}{% endblock %}
 <style>
 /* Layout: a calm masonry wall of images; each card carries its own vote, note and "more like this". */
 :root{--bg:#f3f1ec;--ink:#1b1a18;--muted:#6a655d;--card:#fcfbf8;--line:#dcd7cd;--pos:#15803d;--neg:#b91c1c;
@@ -24,7 +25,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
 .item{break-inside:avoid;margin:0 0 14px;background:var(--card);border:2px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
 .item[data-tone="pos"]{border-color:var(--pos)}
 .item[data-tone="neg"]{border-color:var(--neg)}
-.item[data-tone="neg"] img{opacity:.5}
+.item[data-tone="neg"]>img{opacity:.5}
 .item img{width:100%;max-width:100%;display:block;background:var(--line)}
 .blank{aspect-ratio:4/3;max-width:100%;display:grid;place-items:center;background:var(--line);color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .meta{padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -53,6 +54,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
 #links span{overflow-wrap:anywhere;min-width:0;flex:1;color:var(--muted)}
 #links button{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;font:inherit;font-size:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+{% block style %}{% endblock %}
 </style>
 <header>
   <h1>{% block heading %}{{ title }}{% endblock %}</h1>
@@ -66,8 +68,8 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   <div class="bar"><span id="count" role="status"></span><span id="status" aria-live="polite"></span></div>
 </header>
 <main class="wall" id="page" data-doc="{{ doc }}">
-{% for it in items %}
-  <figure class="item" id="{{ it.id }}" data-tag="{{ it.tag }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
+{% block wall %}{% for it in items %}
+  <figure class="item" id="{{ it.id }}" data-id="{{ it.id }}" data-tag="{{ it.tag }}" data-votes="{{ votes|map(attribute='value')|join(' ') }}" data-tone="">
     {% if it.src %}<img src="{{ it.src }}" alt="{{ it.title }}" loading="lazy">{% else %}<div class="blank" aria-hidden="true">{{ it.tag or "no preview" }}</div>{% endif %}
     <figcaption class="meta">
       <b>{% if it.link %}<a href="{{ it.link }}" target="_blank" rel="noopener">{{ it.title }}</a>{% else %}{{ it.title }}{% endif %}</b>
@@ -81,7 +83,7 @@ header p{margin:0;color:var(--muted);max-width:65ch}
       <button type="button" class="more" aria-pressed="false" aria-label="Find more like {{ it.title }}">More like this</button>
     </div>
   </figure>
-{% endfor %}
+{% endfor %}{% endblock %}
 </main>
 <section class="page-foot">
   <div>
@@ -114,16 +116,16 @@ header p{margin:0;color:var(--muted);max-width:65ch}
 
   const paint = () => {
     cards.forEach(el => {
-      const e = get(el.id), v = e.vote || "";
+      const e = get(el.dataset.id), v = e.vote || "";
       let tone = "";
-      el.querySelectorAll("[data-vote]").forEach(b => {
+      el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => {
         const on = b.dataset.vote === v;
         b.setAttribute("aria-pressed", String(on));
         if (on) tone = b.dataset.tone;
       });
       el.dataset.tone = tone;
-      el.querySelector(".more").setAttribute("aria-pressed", String(wantsMore(el.id)));
-      const ta = el.querySelector(".item-note");
+      el.querySelector(":scope > .extra .more").setAttribute("aria-pressed", String(wantsMore(el.dataset.id)));
+      const ta = el.querySelector(":scope > .extra .item-note");
       if (document.activeElement !== ta) ta.value = e.note || "";
       el.hidden = filter === "@open" ? !!v : !!(filter && el.dataset.tag !== filter);
     });
@@ -135,10 +137,10 @@ header p{margin:0;color:var(--muted);max-width:65ch}
       x.addEventListener("click", () => { state.requests.splice(i, 1); paint(); save(); });
       li.append(s, x); return li;
     }).filter(Boolean));
-    const noted = cards.filter(el => get(el.id).note).length;
+    const noted = cards.filter(el => get(el.dataset.id).note).length;
     if (voting) {
       const tally = {};
-      cards.forEach(el => { const v = get(el.id).vote; if (v) tally[v] = (tally[v] || 0) + 1; });
+      cards.forEach(el => { const v = get(el.dataset.id).vote; if (v) tally[v] = (tally[v] || 0) + 1; });
       const marked = Object.values(tally).reduce((a, b) => a + b, 0);
       const parts = [...cards[0].dataset.votes.split(" ")].map(v => `${tally[v] || 0} ${v}`);
       count.textContent = [...parts, `${cards.length - marked} unmarked`].join(" · ");
@@ -179,17 +181,18 @@ header p{margin:0;color:var(--muted);max-width:65ch}
   const saveSoon = () => { clearTimeout(timer); timer = setTimeout(save, 700); };
 
   cards.forEach(el => {
-    el.querySelectorAll("[data-vote]").forEach(b => b.addEventListener("click", () => {
-      const e = get(el.id);
-      put(el.id, { ...e, vote: e.vote === b.dataset.vote ? null : b.dataset.vote });
+    const id = el.dataset.id;
+    el.querySelectorAll(":scope > .votes [data-vote]").forEach(b => b.addEventListener("click", () => {
+      const e = get(id);
+      put(id, { ...e, vote: e.vote === b.dataset.vote ? null : b.dataset.vote });
       paint(); save();
     }));
-    const ta = el.querySelector(".item-note");
-    ta.addEventListener("input", () => { put(el.id, { ...get(el.id), note: ta.value }); saveSoon(); });
-    ta.addEventListener("change", () => { put(el.id, { ...get(el.id), note: ta.value.trim() }); paint(); save(); });
-    el.querySelector(".more").addEventListener("click", () => {
-      if (wantsMore(el.id)) state.requests = state.requests.filter(q => !(q.type === "more-like" && q.id === el.id));
-      else state.requests.push({ type: "more-like", id: el.id });
+    const ta = el.querySelector(":scope > .extra .item-note");
+    ta.addEventListener("input", () => { put(id, { ...get(id), note: ta.value }); saveSoon(); });
+    ta.addEventListener("change", () => { put(id, { ...get(id), note: ta.value.trim() }); paint(); save(); });
+    el.querySelector(":scope > .extra .more").addEventListener("click", () => {
+      if (wantsMore(id)) state.requests = state.requests.filter(q => !(q.type === "more-like" && q.id === id));
+      else state.requests.push({ type: "more-like", id: id });
       paint(); save();
     });
   });

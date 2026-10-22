@@ -94,8 +94,8 @@ def test_cli_round_render_and_unknown_stage(tmp_path, capsys):
     run = _run(tmp_path)
     assert main(["round", "render", str(run.path), "broad", "--title", "Shop", "--out", str(tmp_path / "o")]) == 0
     assert (tmp_path / "o" / "index.html").exists()
-    assert main(["round", "render", str(run.path), "boards", "--title", "Shop", "--out", str(tmp_path / "o2")]) == 1
-    assert "stage boards has no page yet" in capsys.readouterr().err
+    assert main(["round", "render", str(run.path), "final", "--title", "Shop", "--out", str(tmp_path / "o2")]) == 1
+    assert "stage final has no page yet" in capsys.readouterr().err
 
 
 def test_cli_library_page(tmp_path, monkeypatch):
@@ -111,3 +111,60 @@ def test_cli_library_page(tmp_path, monkeypatch):
     out = tmp_path / "lp"
     assert main(["library-page", "--out", str(out), "--kind", "font", "--no-fetch"]) == 0
     assert "Grotesk A" in (out / "index.html").read_text(encoding="utf-8")
+
+
+def _boards_run(tmp_path, n_dirs=3):
+    from PIL import Image as _I
+    run = Run(tmp_path / "brun")
+    run.images.mkdir(parents=True, exist_ok=True)
+    pool = {"images": []}
+    for i in range(1, 13):
+        iid = f"i{i:03}"
+        _I.new("RGB", (800, 600)).save(run.images / f"{iid}.jpg")
+        pool["images"].append({"id": iid, "file": f"{iid}.jpg", "source_url": f"https://src/{i}",
+                               "source_note": "Note", "title": "T", "kind": "site"})
+    dirs = {"directions": [{
+        "id": str(k), "name": f"Dir {k}", "rationale": "Why.",
+        "image_ids": [f"i{j:03}" for j in range(1, 9)],
+        "palette": ["#111111", "#222222", "#333333", "#444444", "#555555"],
+        "type": {"display": "Archivo Black", "text": "IBM Plex Sans"},
+        "motifs": ["grid", "rule", "dot"], "axes": {},
+        **({"sections": {"ui": ["i001", "i002"], "graphic": ["i003"]},
+            "palettes": {"light": {"bg": "#ffffff", "text": "#000000", "accent": "#8a0000"}}} if k == 3 else {})}
+        for k in range(1, n_dirs + 1)]}
+    (run.path / "directions.json").write_text(json.dumps(dirs)); (run.path / "pool.json").write_text(json.dumps(pool))
+    return run
+
+
+def test_boards_page_has_board_and_image_items_with_notes(tmp_path):
+    run = _boards_run(tmp_path)
+    out = tmp_path / "bo"
+    html = render_round(run, "boards", "Shop", out).read_text(encoding="utf-8")
+    assert len(re.findall(r'data-id="d\d"', html)) == 3
+    assert len(re.findall(r'data-id="\d/i\d{3}"', html)) == 24
+    assert len(re.findall(r'<textarea[^>]*class="item-note"', html)) == 27
+    assert 'data-votes="keep drop"' in html and "rounds/boards-1" in html
+    assert "Choose this" not in html and "data-choose" not in html and "picks/current" not in html
+    assert "Palettes" in html and "Light" in html
+    rec = rounds.load(run, "boards", 1)
+    assert rec.shown[:2] == ["d1", "1/i001"] and len(rec.shown) == 27 and "d3" in rec.shown
+    files = json.loads((out / "files.json").read_text())
+    assert files and all((out / k).exists() for k in files)
+
+
+def test_boards_drop_with_note_reaches_steering(tmp_path):
+    run = _boards_run(tmp_path)
+    render_round(run, "boards", "Shop", tmp_path / "bo")
+    rounds.ingest(run, "boards", 1, {"at": "2999-01-01T00:00:00+00:00", "items": {
+        "1/i004": {"vote": "drop", "note": "too glossy"}, "d2": {"vote": "keep"}}})
+    s = rounds.steering(run)
+    assert "1/i004" in s["dropped"] and "d2" in s["kept"]
+    assert any(n["id"] == "1/i004" and n["text"] == "too glossy" for n in s["notes"])
+
+
+def test_canvas_still_exposes_board_builder(tmp_path):
+    from taste.boards.canvas import build_boards
+    run = _boards_run(tmp_path)
+    (tmp_path / "x" / "img").mkdir(parents=True)
+    boards, files, font_urls = build_boards(run.read("directions.json"), run.read("pool.json"), run.images, tmp_path / "x")
+    assert [b["id"] for b in boards] == ["1", "2", "3"] and font_urls

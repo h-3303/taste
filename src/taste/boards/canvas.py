@@ -62,16 +62,17 @@ def _palettes(d: dict) -> list[dict]:
     return out
 
 
-def render_canvas(directions: dict, pool: dict, images_dir: Path, out_dir: Path, title: str) -> Path:
-    """Render into out_dir, replacing an earlier render there (index.html, img/, files.json)."""
+def check_directions(directions: dict) -> None:
     errs = [e for d in directions["directions"] for e in style_errors(d)]
     if errs:
         raise ValueError("; ".join(errs))
+
+
+def build_boards(directions: dict, pool: dict, images_dir: Path, out_dir: Path) -> tuple[list[dict], dict, list[str]]:
+    """The boards (items, sections, palettes, fonts, components), the files they copy into out_dir/img (which must
+    exist) and the font stylesheet urls. Shared by the moodboards canvas and the taste boards page."""
+    check_directions(directions)
     out_dir = Path(out_dir)
-    shutil.rmtree(out_dir / "img", ignore_errors=True)
-    for name in ("index.html", "files.json"):
-        (out_dir / name).unlink(missing_ok=True)
-    (out_dir / "img").mkdir(parents=True)
     by_id = {r["id"]: r for r in pool["images"]}
     files, fonts, boards = {}, set(), []
     for d in directions["directions"]:
@@ -106,6 +107,18 @@ def render_canvas(directions: dict, pool: dict, images_dir: Path, out_dir: Path,
                   "kind": clean_text(c.get("kind", ""), 20, markdown=False)} for c in d.get("components") or []]
         boards.append({**d, "items": items, "groups": groups, "pals": _palettes(d), "comps": comps})
     font_urls = [f"https://fonts.googleapis.com/css2?family={quote_plus(f)}&display=swap" for f in sorted(fonts)]
+    return boards, files, font_urls
+
+
+def render_canvas(directions: dict, pool: dict, images_dir: Path, out_dir: Path, title: str) -> Path:
+    """Render into out_dir, replacing an earlier render there (index.html, img/, files.json)."""
+    check_directions(directions)
+    out_dir = Path(out_dir)
+    shutil.rmtree(out_dir / "img", ignore_errors=True)
+    for name in ("index.html", "files.json"):
+        (out_dir / name).unlink(missing_ok=True)
+    (out_dir / "img").mkdir(parents=True)
+    boards, files, font_urls = build_boards(directions, pool, images_dir, out_dir)
     html = env.get_template("canvas.html.j2").render(title=title, boards=boards, font_urls=font_urls)
     (out_dir / "index.html").write_text(html, encoding="utf-8")
     (out_dir / "files.json").write_text(json.dumps(files, indent=2), encoding="utf-8")
