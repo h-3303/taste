@@ -168,3 +168,9 @@ def test_canvas_still_exposes_board_builder(tmp_path):
     (tmp_path / "x" / "img").mkdir(parents=True)
     boards, files, font_urls = build_boards(run.read("directions.json"), run.read("pool.json"), run.images, tmp_path / "x")
     assert [b["id"] for b in boards] == ["1", "2", "3"] and font_urls
+
+
+def test_boards_image_note_field_gets_its_own_row(tmp_path):
+    html = render_round(_boards_run(tmp_path), "boards", "Shop", tmp_path / "bo").read_text(encoding="utf-8")
+    assert ".pic .extra{padding:4px 6px 6px;flex-wrap:wrap}" in html
+    assert ".pic .item-note{flex:1 1 100%;min-width:0}" in html
