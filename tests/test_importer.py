@@ -12,7 +12,7 @@ def add(conn, thumbs, source, key, iid, page="https://ex.test/p", lic="CC0", col
     (thumbs / f"{iid}.jpg").write_bytes(b"jpg-" + iid.encode())
     conn.execute("INSERT INTO items(id,key,source,kind,title,page_url,asset_url,thumb,tags,meta,license,added_at,last_seen)"
                  " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                 (iid, key, source, "image", f"title {key}", page, "", f"thumbs/{iid}.jpg", "[]", "{}", lic, "t", "t"))
+                 (iid, key, source, "image", f"title {key}", page, f"https://cdn.test/{iid}.jpg", f"thumbs/{iid}.jpg", "[]", "{}", lic, "t", "t"))
     if coll:
         conn.execute("INSERT OR IGNORE INTO collections(id,slug,source,kind,title) VALUES (?,?,?,?,?)",
                      (coll, coll, source, "image", coll))
