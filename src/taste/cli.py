@@ -239,7 +239,7 @@ def _cmd_combine(rest: list[str]) -> int:
     for m in new:
         print(f"{m['id']}\t{m['name']}")
     if not new:
-        print(f"directions round {a.from_round} has no mixes")
+        print(f"nothing new from round {a.from_round}")
     return 0
 
 

@@ -154,3 +154,39 @@ def test_cli_combine(run_with_dirs, capsys):
     assert "m1" in capsys.readouterr().out
     assert main(["combine", str(run_with_dirs.path), "--from-round", "5"]) == 1
     assert "no directions round 5" in capsys.readouterr().err
+
+
+MIX_A = {"name": "A", "parts": {"palette": "1", "type": "2", "texture": "2", "components": "1", "imagery": "1"}}
+
+
+def test_reapplying_a_round_creates_nothing(run_with_dirs):
+    rnd = ingest_with_combo(run_with_dirs, [MIX_A])
+    assert [m["id"] for m in combine.apply_combos(run_with_dirs, rnd)] == ["m1"]
+    assert combine.apply_combos(run_with_dirs, rnd) == []
+    saved = run_with_dirs.read("directions.json")["directions"]
+    assert [d["id"] for d in saved] == ["1", "2", "3", "m1"] and saved[-1]["from_round"] == 1
+
+
+def test_later_round_with_new_combo_still_creates_one(run_with_dirs):
+    combine.apply_combos(run_with_dirs, ingest_with_combo(run_with_dirs, [MIX_A]))
+    rounds.start(run_with_dirs, "directions", ["1"], rendered_at="2000-01-01T00:00:00Z")
+    rnd2 = rounds.ingest(run_with_dirs, "directions", 2, {"at": "2999-01-01T00:00:00Z", "combos": [
+        MIX_A, {"name": "B", "parts": {**ALL1, "type": "3"}}]})
+    new = combine.apply_combos(run_with_dirs, rnd2)
+    assert [(m["id"], m["name"], m["from_round"]) for m in new] == [("m2", "A", 2), ("m3", "B", 2)]
+
+
+def test_same_name_different_parts_in_same_round_is_created(run_with_dirs):
+    rnd = ingest_with_combo(run_with_dirs, [MIX_A])
+    combine.apply_combos(run_with_dirs, rnd)
+    rnd.combos.append({"name": "A", "parts": {**MIX_A["parts"], "imagery": "2"}, "note": ""})
+    assert [m["id"] for m in combine.apply_combos(run_with_dirs, rnd)] == ["m2"]
+
+
+def test_cli_combine_twice_says_nothing_new(run_with_dirs, capsys):
+    ingest_with_combo(run_with_dirs)
+    assert main(["combine", str(run_with_dirs.path), "--from-round", "1"]) == 0
+    capsys.readouterr()
+    assert main(["combine", str(run_with_dirs.path), "--from-round", "1"]) == 0
+    assert "nothing new from round 1" in capsys.readouterr().out
+    assert len(run_with_dirs.read("directions.json")["directions"]) == 4

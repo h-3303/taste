@@ -62,13 +62,23 @@ def combine(directions: list[dict], parts: dict[str, str], name: str, note: str 
     return mix
 
 
+def _key(round_n, name, parts) -> tuple:
+    return round_n, clean_text(name, 60, markdown=False), tuple(sorted((str(k), str(v)) for k, v in (parts or {}).items()))
+
+
 def apply_combos(run, rnd) -> list[dict]:
-    """Append one mix per combo in the round to directions.json (all or nothing) and return the new mixes."""
+    """Append one mix per combo in the round to directions.json (all or nothing) and return the new mixes.
+    Each mix records `from_round`; a combo already applied from this round (same name and parts) is skipped."""
     run = run if isinstance(run, Run) else Run(run)
     data = run.read("directions.json")
     ds, new = list(data.get("directions", [])), []
+    done = {_key(d["from_round"], d.get("name"), d.get("from")) for d in ds if "from_round" in d}
     for c in rnd.combos:
-        m = combine(ds, c.get("parts") or {}, c.get("name", ""), c.get("note", ""))
+        key = _key(rnd.n, c.get("name", ""), c.get("parts"))
+        if key in done:
+            continue
+        m = {**combine(ds, c.get("parts") or {}, c.get("name", ""), c.get("note", "")), "from_round": rnd.n}
+        done.add(key)
         ds.append(m)
         new.append(m)
     if new:
