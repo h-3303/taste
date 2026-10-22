@@ -125,3 +125,13 @@ def test_default_dlib_add_respects_no_dlib(env, monkeypatch, tmp_path):
     scout._default_dlib_add(img, "https://src/k", "Swiss Grid")
     from taste.library import paths
     assert not paths.db_path().exists()
+
+
+def test_install_timer_without_taste_on_path_is_a_user_error(env, monkeypatch, capsys):
+    from taste.library import timer
+    monkeypatch.setattr(timer.shutil, "which", lambda name: None)
+    monkeypatch.setattr(timer.Path, "home", lambda: env)
+    monkeypatch.setattr(timer.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran systemctl")))
+    assert cli.main(["maintainer", "install-timer"]) == 1
+    assert "not on PATH" in capsys.readouterr().err
+    assert not (env / ".config").exists()

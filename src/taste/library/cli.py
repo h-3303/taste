@@ -200,6 +200,16 @@ def cmd_cache(a) -> int:
     return 0
 
 
+def cmd_install_timer(a) -> int:
+    try:
+        d = timer.install()
+    except timer.NotInstalled as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(f"installed {timer.NAME}.timer under {d} (weekly, Sunday 04:00)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = _Parser(prog="dlib", description="the taste design library")
     ap.add_argument("--json", action="store_true")
@@ -234,7 +244,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("add", help="add a url or file to a curated collection")
     p.add_argument("collection"); p.add_argument("sources", nargs="+"); p.add_argument("--title"); p.add_argument("--tags"); p.add_argument("--page-url"); p.add_argument("--language")
     p.set_defaults(fn=cmd_add)
-    sub.add_parser("install-timer", help="install the weekly systemd user timer").set_defaults(fn=lambda a: (print(f"installed under {timer.install()} (weekly, Sunday 04:00)"), 0)[1])
+    sub.add_parser("install-timer", help="install the weekly systemd user timer").set_defaults(fn=cmd_install_timer)
     return ap
 
 
