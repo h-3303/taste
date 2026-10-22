@@ -4,7 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from . import rounds
-from .boards.run import Run, clean_text
+from .boards.run import Run, md_line
 
 LAYERS = {"ui": ("ground", "cards", "depth", "ui", "type", "accent"),
           "graphic": ("ground", "type", "accent", "imagery", "texture")}
@@ -80,7 +80,7 @@ def shown_ids(doc: dict) -> list[str]:
 
 
 def _c(text) -> str:
-    return clean_text(text, limit=LIMIT)
+    return md_line(text, LIMIT)
 
 
 def _section(text: str, heading: re.Pattern) -> tuple[int, int] | None:

@@ -25,6 +25,11 @@ def clean_text(text, limit: int = 120, markdown: bool = True) -> str:
     return re.sub(r"([\\\[\]()])", r"\\\1", text) if markdown else text
 
 
+def md_line(text, limit: int = 300) -> str:
+    """One escaped markdown line: links escaped by clean_text, inline HTML neutralised."""
+    return clean_text(text, limit=limit).replace("<", "&lt;")
+
+
 class Run:
     def __init__(self, path):
         self.path = Path(path)

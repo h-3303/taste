@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 
 from . import rounds
-from .boards.run import Run, clean_text
+from .boards.run import Run, md_line
 
 SECTIONS = ("Liked traits", "Disliked traits", "Rules", "References", "Projects")
 PROPOSAL_SECTIONS = SECTIONS[:4]
@@ -21,8 +21,7 @@ def _run(run) -> Run:
 
 
 def _md(text, limit: int = LIMIT) -> str:
-    """One escaped markdown line: links escaped by clean_text, inline HTML neutralised."""
-    return clean_text(text, limit=limit).replace("<", "&lt;")
+    return md_line(text, limit)
 
 
 def _key(text: str) -> str:

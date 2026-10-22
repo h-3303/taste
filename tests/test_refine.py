@@ -146,12 +146,17 @@ def test_unpicked_layer_only_with_note(run, tmp_path):
 
 def test_hostile_note_stays_in_one_escaped_line(run, tmp_path):
     proj = _project(tmp_path)
-    _pass(run, 1, ["ground:paper"], notes={"ground": "## hijack\n[x](y)"}, prompts=["## p\n[a](b)"], note="# n\n(z)")
+    _pass(run, 1, ["ground:paper"], notes={"ground": "## hijack\n[x](y) <script>alert(1)</script>"},
+          prompts=["## p\n[a](b) <img src=x onerror=alert(2)>"], note="# n\n(z) <iframe src=y>")
     md = refine.apply_pass(run, 1, proj).read_text(encoding="utf-8")
+    direction = (proj / "design" / "direction.md").read_text(encoding="utf-8")
     assert "\n## hijack" not in md and "\n# n" not in md and "\n## p" not in md
     line = next(x for x in md.splitlines() if "hijack" in x)
     assert line.startswith("- ground: Paper") and "\\[x\\]\\(y\\)" in line
     assert "[x](y)" not in md and "[a](b)" not in md
+    for doc in (md, direction):
+        assert "<script" not in doc and "<img" not in doc and "<iframe" not in doc
+    assert "&lt;script>" in md
 
 
 def test_two_passes_give_two_sections_in_order(run, tmp_path):
