@@ -148,6 +148,7 @@ def _render_review(run: Run, stage: str, title: str, out_dir: Path, repeat_of: i
         if props:
             groups.append({"name": sec, "proposals": props})
     r = rounds.start(run, stage, [it["id"] for g in groups for it in g["proposals"]], repeat_of=repeat_of)
+    run.write(profile.snapshot_name(r.n), proposals)   # apply_review reads only what this page showed
     return _write(out_dir, PAGES[stage], {}, title=clean_text(title, markdown=False), groups=groups, items=[],
                   tags=[], votes=_votes(stage), doc=f"rounds/{stage}-{r.n}", repeat_of=repeat_of, n=r.n)
 

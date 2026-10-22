@@ -93,6 +93,73 @@ def load_proposals(run) -> list[dict]:
     return items
 
 
+def snapshot_name(n: int) -> str:
+    return f"review/{n}-proposals.json"
+
+
+def _fence(line: str) -> bool:
+    return line.lstrip().startswith(("```", "~~~"))
+
+
+def _outline(lines: list[str]) -> list[tuple[int, str]]:
+    """(index, name) of every `## ` heading outside code fences."""
+    out, fenced = [], False
+    for i, line in enumerate(lines):
+        if _fence(line):
+            fenced = not fenced
+        elif not fenced and line.startswith("## "):
+            out.append((i, line[3:].strip()))
+    return out
+
+
+def _bullets(lines: list[str]) -> list[str]:
+    """Top-level bullets outside code fences."""
+    out, fenced = [], False
+    for line in lines:
+        if _fence(line):
+            fenced = not fenced
+        elif not fenced and line[:2] in ("- ", "* ", "+ "):
+            out.append(line[2:].strip())
+    return out
+
+
+def _append(text: str, additions: dict[str, list[str]]) -> tuple[str, dict[str, list[str]]]:
+    """Insert new `- ` lines at the end of each section's existing text, creating missing sections at the end.
+    Only inserts: every existing byte stays where it was. Returns the new text and what was actually added."""
+    added: dict[str, list[str]] = {s: [] for s in SECTIONS}
+    missing: list[str] = []
+    for section in SECTIONS:
+        lines = text.splitlines(keepends=True)
+        heads = _outline(lines)
+        at = next((k for k, (_, name) in enumerate(heads) if name == section), None)
+        start = heads[at][0] + 1 if at is not None else len(lines)
+        end = heads[at + 1][0] if at is not None and at + 1 < len(heads) else len(lines)
+        have = {_key(b) for b in _bullets(lines[start:end])} if at is not None else set()
+        for entry in additions.get(section, []):
+            if entry and _key(entry) not in have:
+                have.add(_key(entry))
+                added[section].append(entry)
+        if not added[section]:
+            continue
+        block = [f"- {e}\n" for e in added[section]]
+        if at is None:
+            missing.append(section)
+            continue
+        filled = [i for i in range(start, end) if lines[i].strip()]
+        pos = filled[-1] + 1 if filled else start
+        if not filled:
+            block = ["\n"] + block
+        if pos > 0 and not lines[pos - 1].endswith("\n"):
+            lines[pos - 1] += "\n"
+        lines[pos:pos] = block
+        text = "".join(lines)
+    for section in missing:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += ("\n" if text else "") + f"## {section}\n\n" + "".join(f"- {e}\n" for e in added[section])
+    return text, added
+
+
 def _project_dir(run: Run) -> Path | None:
     if run.has("project.json"):
         d = run.read("project.json").get("dir")
@@ -172,24 +239,23 @@ def apply_review(run, n: int, profile_path: Path) -> dict:
     r = rounds.load(run, "review", n)
     if r.at is None:
         raise ValueError(f"ingest review pass {n} first (taste round ingest)")
+    if not run.has(snapshot_name(n)):
+        raise ValueError(f"no {snapshot_name(n)}: render the review page again (taste round render RUN review)")
     shown = set(r.shown)
-    proposals = [p for p in load_proposals(run) if p["id"] in shown]
-    data = read_profile(profile_path)
+    proposals = [p for p in run.read(snapshot_name(n)) if p["id"] in shown]
     project_dir = _project_dir(run)
     d = _picked(run, project_dir)
     name = d["name"] if d else "no direction picked yet"
-    wanted = [(p["section"], _md(p["text"])) for p in proposals
-              if (s := r.items.get(p["id"])) and s.vote == "pick"]
-    wanted.append(("Projects", f"{date.today().isoformat()} {_md(_slug(run, project_dir), 80)}: {_md(name, 80)}"))
-    added: dict[str, list[str]] = {s: [] for s in SECTIONS}
-    for section, text in wanted:
-        if not text:
-            continue
-        have = {_key(e) for e in data[section]}
-        if _key(text) not in have:
-            data[section].append(text)
-            added[section].append(text)
-    if any(added.values()) or not Path(profile_path).is_file():
-        write_profile(profile_path, data)
+    wanted: dict[str, list[str]] = {s: [] for s in SECTIONS}
+    for p in proposals:
+        if (s := r.items.get(p["id"])) and s.vote == "pick" and p.get("section") in PROPOSAL_SECTIONS:
+            wanted[p["section"]].append(_md(p["text"]))
+    wanted["Projects"].append(f"{date.today().isoformat()} {_md(_slug(run, project_dir), 80)}: {_md(name, 80)}")
+    path = Path(profile_path)
+    old = path.read_text(encoding="utf-8") if path.is_file() else "# Taste profile\n"
+    new, added = _append(old, wanted)
+    if new != old or not path.is_file():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(new, encoding="utf-8")
     return {"added": added, "skipped": [p["id"] for p in proposals if not ((s := r.items.get(p["id"])) and s.vote == "pick")],
             "path": str(profile_path)}
