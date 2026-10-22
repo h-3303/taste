@@ -100,19 +100,25 @@ def _query(page: str) -> str:
 
 
 def _default_dlib_add(path: Path, source: str, language: str) -> None:
-    """File a keeper into the design library (curated/<language slug>) when dlib is installed."""
+    """File a keeper into the design library (curated/<language slug>); MOODBOARDS_NO_DLIB disables it."""
     import os
-    import shutil as _sh
-    import subprocess
     from .run import slugify
-    if os.environ.get("MOODBOARDS_NO_DLIB") or not _sh.which("dlib"):
+    if os.environ.get("MOODBOARDS_NO_DLIB"):
         return
+    from taste.library import curated, db, paths
+    from taste.library.fetch import FetchError, Fetcher
     slug = f"curated/{slugify(language)}"
-    subprocess.run(["dlib", "collection", "new", slug, "--kind", "image", "--language", language], capture_output=True)
-    r = subprocess.run(["dlib", "add", slug, str(path), "--page-url", source, "--language", language],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        print(f"dlib add failed for {path.name}: {r.stderr.strip()[:200]}")
+    try:
+        paths.ensure_dirs()
+        conn = db.connect(paths.db_path())
+        curated.new_collection(conn, slug, "image", None, [language])
+        f = Fetcher()
+        try:
+            curated.add(conn, slug, str(path), f, paths.thumbs_dir(), "", [], source, language)
+        finally:
+            f.close()
+    except (KeyError, ValueError, FetchError, OSError) as e:
+        print(f"dlib add failed for {path.name}: {str(e)[:200]}")
 
 
 def keep(run_dir: Path, style: str, numbers: list[str], inbox: Path, dlib_add=_default_dlib_add) -> list[Path]:

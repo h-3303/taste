@@ -56,6 +56,8 @@ def _item_line(r: dict) -> str:
 def cmd_sync(a) -> int:
     try:
         adapters = [base.get(s) for s in a.sources] if a.sources else base.all_adapters()
+        if a.max_tier and not a.sources:
+            adapters = [x for x in adapters if x.info.tier <= a.max_tier]
     except KeyError as e:
         print(f"error: {e.args[0]}", file=sys.stderr)
         return 1
@@ -204,6 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-collections", type=int); p.add_argument("--max-items", type=int)
     p.add_argument("--snapshot", action="store_true", help="allow tier-3 sources (one-off)")
     p.add_argument("--workers", type=int, default=8); p.add_argument("--screenshots", action="store_true")
+    p.add_argument("--max-tier", type=int, default=0, help=argparse.SUPPRESS)
     p.set_defaults(fn=cmd_sync)
     p = sub.add_parser("search"); p.add_argument("query", nargs="?", default="")
     for opt in ("--kind", "--source", "--collection", "--language"):

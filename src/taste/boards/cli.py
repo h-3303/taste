@@ -26,20 +26,23 @@ def cmd_new(a):
 
 
 def dlib_pluck(item_id: str, out: Path) -> dict | None:
-    """Pluck one design-library image item into `out`; None when dlib is missing or the pluck fails."""
-    import shutil as _sh
-    import subprocess
-    if not _sh.which("dlib"):
+    """Pluck one design-library image item into `out`; None when the item is missing or the pluck fails."""
+    from taste.library import db, paths, pluck as pluck_mod
+    from taste.library.fetch import FetchError, Fetcher
+    try:
+        paths.ensure_dirs()
+        conn = db.connect(paths.db_path())
+        f = Fetcher()
+        try:
+            r = pluck_mod.pluck(conn, item_id, f, out, {}, cache_root=paths.cache_dir())
+        finally:
+            f.close()
+        if not r.path:
+            return None
+        meta = db.get_item(conn, item_id) or {}
+    except (KeyError, ValueError, FetchError, OSError):
         return None
-    r = subprocess.run(["dlib", "--json", "pluck", item_id, "--out", str(out)], capture_output=True, text=True)
-    if r.returncode != 0:
-        return None
-    data = json.loads(r.stdout)
-    if not data["results"] or not data["results"][0]["path"]:
-        return None
-    s = subprocess.run(["dlib", "--json", "show", item_id], capture_output=True, text=True)
-    meta = json.loads(s.stdout) if s.returncode == 0 else {}
-    return {"path": data["results"][0]["path"], "title": meta.get("title", item_id), "page_url": meta.get("page_url", "")}
+    return {"path": str(r.path), "title": meta.get("title", item_id), "page_url": meta.get("page_url", "")}
 
 
 def cmd_gather(a):
